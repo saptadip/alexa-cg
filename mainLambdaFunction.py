@@ -8,7 +8,7 @@ import requests
 # --------------------
 api_base_url1 = os.environ['api_base_url1']
 api_base_url2 = os.environ['api_base_url2']
-
+api_base_url3 = os.environ['api_base_url3']
 
 # Main Lambda Fucntion body
 # -------------------------
@@ -61,6 +61,9 @@ def on_intent(intent_request, session):
         elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
             del session['session_attributes']['userPromptedFor_getIcoInfo']
             return handle_session_end_request()
+        elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
+            del session['session_attributes']['userPromptedFor_getQuickFacts']
+            return handle_session_end_request()
 
     # handle YES intent after the user has been prompted
     if intent_name == "AMAZON.YesIntent":
@@ -70,13 +73,16 @@ def on_intent(intent_request, session):
         elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
             del session['session_attributes']['userPromptedFor_getIcoInfo']
             return get_welcome_response()
+        elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
+            del session['session_attributes']['userPromptedFor_getQuickFacts']
+            return get_welcome_response()
 
     if intent_name == "GetCryptoPrice":
         return get_crypto_price()
     elif intent_name == "GetIcoInfo":
         return get_ico_info()
     elif intent_name == "GetQuickFacts":
-        return get_quick_facts()
+        return get_quick_facts(intent)
     elif intent_name == "GetPortfolio":
         return get_portfolio()
     elif intent_name == "AMAZON.HelpIntent":
@@ -127,7 +133,7 @@ def get_welcome_response():
 # --------------------------------------------------
 def get_crypto_price():
     session_attributes = {}
-    card_title = "Latest Crypto Prices"
+    card_title = "CG - Latest Crypto Prices"
     speech_output = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
     reprompt_text = "Hmm...I am sorry. I couldn't get the latest price details. " \
@@ -156,16 +162,16 @@ def get_crypto_price():
 
 
 # Function-8: On Getting ICO Info Intent Request
-# ------------------------//--------------------
+# ----------------------------------------------
 def get_ico_info():
     session_attributes = {}
-    card_title = "Latest ICOs"
+    card_title = "CG - Latest ICOs"
     reprompt_text = ""
     should_end_session = False
 
     ico_live_req = requests.get(api_base_url2)
     ico_live_json_resp = json.loads(ico_live_req.content)
-#    ico_live_count = len(ico_live_json_resp['ico']['live'])
+#   ico_live_count = len(ico_live_json_resp['ico']['live'])
     ico_live_count = 5
 
     speech_output = " That was a smart choice! Great! Let me search for currently ongoing I C O. Hm, I have found " + str(ico_live_count) + " I C O. Here is the list: "
@@ -182,22 +188,121 @@ def get_ico_info():
 
     session_attributes['userPromptedFor_getIcoInfo'] = True
     speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes or no."
-    reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. "
+    reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
 
-# Function-9:
-# ----------
-def get_quick_facts(station_name):
-    return {
-        "rotterdam central": "rtd",
-        "delft": "dt",
-        "amsterdam central": "asd",
-        "amsterdam airport": "shl",
-        "schiphol": "shl",
-    }.get(station_name, "unkn")
+# Function-9 On Getting Social Media Facts Intent Request:
+# --------------------------------------------------------
+def get_quick_facts(intent):
+    session_attributes = {}
+    card_title = "CG - Social Media Facts"
+    speech_output = "Sorry, I didn't get that. " \
+                    "Please try again."
+    reprompt_text = "If you are not sure, try some well know currency. " \
+                    "Like: Bitcoin."
+    should_end_session = False
+
+    if "Currency" in intent["slots"]:
+       try:
+          currency_name = intent["slots"]["Currency"]["value"]
+       except KeyError:
+          return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+       
+       currency_code = get_currency_code(currency_name.lower())
+
+       if (station_code != "unkn"):
+            card_title = "CG - Social Media Facts " + currency_name.title()
+            r = requests.get(api_base_url3 + cur_code)
+            j = json.loads(r.content)
+
+          # twitter Account Stats
+          #----------------------
+            try:
+                twtr_acc_name = j['Data']['Twitter']['name']
+            except KeyError:
+                twtr_acc_name = "not available"
+            try:
+                twtr_acc_link = j['Data']['Twitter']['link']
+            except KeyError:
+                twtr_acc_link = "not available"
+            try:
+                twtr_tweet_count = j['Data']['Twitter']['statuses']
+            except KeyError:
+                twtr_tweet_count = "not available"
+            try:
+                twtr_like_count = j['Data']['Twitter']['favourites']
+            except KeyError:
+                twtr_like_count = "not available"
+            try:
+                twtr_follower_count = j['Data']['Twitter']['followers']
+            except KeyError:
+                twtr_follower_count = "not available"
+
+          # reddit Account Stats
+          #---------------------
+            try:
+                rdit_acc_name = j['Data']['Reddit']['name']
+            except KeyError:
+                rdit_acc_name = "not available"
+            try:
+                rdit_acc_link = j['Data']['Reddit']['link']
+            except KeyError:
+                rdit_acc_link = "not available"
+            try:
+                rdit_actv_user_count = j['Data']['Reddit']['active_users']
+            except KeyError:
+                rdit_actv_user_count = "not available"
+            try:
+                rdit_subscrb_count = j['Data']['Reddit']['subscribers']
+            except KeyError:
+                rdit_subscrb_count = "not available"
+            try:
+                rdit_posts_per_hour = j['Data']['Reddit']['posts_per_hour']
+            except KeyError:
+                rdit_posts_per_hour = "not available"
+            try:
+                rdit_comnts_per_hour = j['Data']['Reddit']['comments_per_hour']
+            except KeyError:
+                rdit_comnts_per_hour = "not available"
+            try:
+                rdit_posts_per_day = j['Data']['Reddit']['posts_per_day']
+            except KeyError:
+                rdit_posts_per_day = "not available"
+            try:
+                rdit_comnts_per_day = j['Data']['Reddit']['comments_per_day']
+            except KeyError:
+                rdit_comnts_per_day = "not available"
+
+          # facebook account stats
+          #-----------------------
+            try:
+                fb_like_count = j['Data']['Facebook']['likes']
+            except KeyError:
+                fb_like_count = "not available"
+            try:
+                fb_talking_count = j['Data']['Facebook']['talking_about']
+            except KeyError:
+                fb_talking_count = "not available"
+            try:
+                fb_link = j['Data']['Facebook']['link']
+            except KeyError:
+                fb_link = "not available"
+
+
+            session_attributes['userPromptedFor_getQuickFacts'] = True
+            speech_output = " I collected all the latest social media related activities on " + currency_name + " and created a personalized report card for you. So are you ready? Here we go: " \
+                            "Twitter account name is: " + twtr_acc_name + ". Number of followers on Twitter is: " + twtr_follower_count + ". Total tweet count is: " + twtr_tweet_count + ". Total number of tweets liked by the users is: " + twtr_like_count + ". " \
+                            "Reddit account name is: " + rdit_acc_name + ". Number of active users on Reddit is: " + rdit_actv_user_count + ". Total subscriber count on reddit is: " + rdit_subscrb_count + ". Number of posts per hour is: " + rdit_posts_per_hour + ". Number of comments per hour is: " + rdit_comnts_per_hour + ". Number of posts per day is: " + rdit_posts_per_day + ". Number of comments per day is: " + rdit_comnts_per_day + ". " \
+                            "On Facebook number of likes received on the homepage is: " + fb_like_count + ". Number of people talking about " + currency_name + " on facebook is: " + fb_talking_count + ". " \
+                            "So that is all I can find on social media about " + currency_name + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
+            reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
 
 
 # Function-10:
@@ -244,6 +349,7 @@ def build_response(session_attributes, speechlet_response):
         "response": speechlet_response
     }
 
+
 # Function-13: Date formatting in human readable format
 # -----------------------------------------------------
 def date_formatter(input_date):
@@ -258,6 +364,16 @@ def date_formatter(input_date):
     formatted_time = time.strftime("%r", time.gmtime(d))
     return formatted_date, formatted_time
 
+
+# Function-14: Get Currency Code
+# ------------------------------
+def get_currency_code(currency_name):
+    return {
+        "bitcoin": "1182",
+        "ethereum": "7605",
+        "litecoin": "3808",
+    }.get(currency_name, "unkn")
+
+
 # Supporting Functions Declaration End
 # ------------------------------------
-

@@ -214,7 +214,7 @@ def get_quick_facts(intent):
        
        currency_code = get_currency_code(currency_name.lower())
 
-       if (station_code != "unkn"):
+       if (currency_code != "unkn"):
             card_title = "CG - Social Media Facts " + currency_name.title()
             r = requests.get(api_base_url3 + cur_code)
             j = json.loads(r.content)

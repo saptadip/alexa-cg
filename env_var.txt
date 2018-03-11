@@ -2,3 +2,4 @@
 api_base_url1="https://api.coinmarketcap.com/v1/ticker/?limit=10"
 api_base_url2="https://api.icowatchlist.com/public/v1/live"
 api_base_url3="https://www.cryptocompare.com/api/data/socialstats/?id="
+api_base_url4="https://min-api.cryptocompare.com/data/news/?feeds=cointelegraph&lTs="

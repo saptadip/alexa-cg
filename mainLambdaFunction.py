@@ -23,7 +23,7 @@ def lambda_handler(event, context):
     if event["request"]["type"] == "LaunchRequest":
         return on_launch(event["request"], event["session"])
     elif event["request"]["type"] == "IntentRequest":
-        return on_intent(event["request"], event["session"])
+        return on_intent(event["request"], event["session"], event)
     elif event["request"]["type"] == "SessionEndedRequest":
         return on_session_ended(event["request"], event["session"])
 
@@ -49,7 +49,7 @@ def on_launch(launch_request, session):
 
 # Function-3: On Receiving User Intent
 # ------------------------------------
-def on_intent(intent_request, session):
+def on_intent(intent_request, session, event):
     intent = intent_request["intent"]
     intent_name = intent_request["intent"]["name"]
 
@@ -82,7 +82,7 @@ def on_intent(intent_request, session):
     elif intent_name == "GetIcoInfo":
         return get_ico_info()
     elif intent_name == "GetQuickFacts":
-        return get_quick_facts(intent)
+        return get_quick_facts(intent, event)
     elif intent_name == "GetPortfolio":
         return get_portfolio()
     elif intent_name == "AMAZON.HelpIntent":
@@ -196,13 +196,36 @@ def get_ico_info():
 
 # Function-9 On Getting Social Media Facts Intent Request:
 # --------------------------------------------------------
-def get_quick_facts(intent):
+def get_quick_facts(intent, event):
+    dialog_state = event['request']['dialogState']
+    if dialog_state in ("STARTED", "IN_PROGRESS"):
+        return continue_dialog()
+    elif dialog_state == "COMPLETED":
+        return collect_social_media_info(intent)
+    else:
+        return handle_session_end_request()
+
+
+def continue_dialog():
+    message = {}
+    message['should_end_session'] = False
+    message['directives'] = [{'type': 'Dialog.Delegate'}]
+    return build_dialogue_response(message)
+
+
+def build_dialogue_response(message, session_attributes={}):
+    response = {}
+    response['version'] = '1.0'
+    response['sessionAttributes'] = session_attributes
+    response['response'] = message
+    return response
+
+
+def collect_social_media_info(intent):
     session_attributes = {}
     card_title = "CG - Social Media Facts"
-    speech_output = "Sorry, I didn't get that. " \
-                    "Please try again."
-    reprompt_text = "If you are not sure, try some well know currency. " \
-                    "Like: Bitcoin."
+    speech_output = "Sorry, I do not know the currency you just said. Please try again."
+    reprompt_text = "If you are not sure, try some well know currency. Like: Bitcoin."
     should_end_session = False
 
     if "Currency" in intent["slots"]:

@@ -239,7 +239,7 @@ def collect_social_media_info(intent):
 
        if (currency_code != "unkn"):
             card_title = "CG - Social Media Facts " + currency_name.title()
-            r = requests.get(api_base_url3 + cur_code)
+            r = requests.get(api_base_url3 + currency_code)
             j = json.loads(r.content)
 
           # twitter Account Stats

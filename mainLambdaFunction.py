@@ -9,6 +9,7 @@ import requests
 api_base_url1 = os.environ['api_base_url1']
 api_base_url2 = os.environ['api_base_url2']
 api_base_url3 = os.environ['api_base_url3']
+api_base_url4 = os.environ['api_base_url4']
 
 # Main Lambda Fucntion body
 # -------------------------
@@ -61,6 +62,9 @@ def on_intent(intent_request, session, event):
         elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
             del session['session_attributes']['userPromptedFor_getIcoInfo']
             return handle_session_end_request()
+        elif session.get('session_attributes', {}).get('userPromptedFor_getLatestNews'):
+            del session['session_attributes']['userPromptedFor_getLatestNews']
+            return handle_session_end_request()
         elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
             del session['session_attributes']['userPromptedFor_getQuickFacts']
             return handle_session_end_request()
@@ -72,6 +76,9 @@ def on_intent(intent_request, session, event):
             return get_welcome_response()
         elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
             del session['session_attributes']['userPromptedFor_getIcoInfo']
+            return get_welcome_response()
+        elif session.get('session_attributes', {}).get('userPromptedFor_getLatestNews'):
+            del session['session_attributes']['userPromptedFor_getLatestNews']
             return get_welcome_response()
         elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
             del session['session_attributes']['userPromptedFor_getQuickFacts']
@@ -85,6 +92,8 @@ def on_intent(intent_request, session, event):
         return get_quick_facts(intent, event)
     elif intent_name == "GetPortfolio":
         return get_portfolio()
+    elif intent_name == "GetLatestNews":
+        return get_latest_news()
     elif intent_name == "AMAZON.HelpIntent":
         return get_welcome_response()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
@@ -122,7 +131,7 @@ def get_welcome_response():
                     "Choice 2:  I C O information. " \
                     "Choice 3:  Social Media facts. " \
                     "Choice 4:  My portfolio. " \
-                    "Choice 5:  Latest news. "
+                    "Choice 5:  Crypto headlines. "
     reprompt_text = "Please choose any option between one to five"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
@@ -154,7 +163,7 @@ def get_crypto_price():
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
     session_attributes['userPromptedFor_getCryptoPrice'] = True
-    speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it for free for you!! If you like then say yes, if not, then say no."
+    speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
@@ -323,6 +332,40 @@ def collect_social_media_info(intent):
                             "On Facebook number of likes received on the homepage is: " + fb_like_count + ". Number of people talking about " + currency_name + " on facebook is: " + fb_talking_count + ". " \
                             "So that is all I can find on social media about " + currency_name + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
             reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+def get_latest_news():
+    session_attributes = {}
+    card_title = "CG - Crypto News Headlines"
+    speech_output = "Hmm...I am sorry. I couldn't get the latest news. " \
+                    "Please try again after sometime. "
+    reprompt_text = "Hmm...I am sorry. I couldn't get the latest news. " \
+                    "Please try again after sometime. "
+    should_end_session = False
+
+    day_hrs_in_epoch = 86400
+    cur_time_in_epoch = int(time.time())
+    last_time_in_epoch = cur_time_in_epoch - day_hrs_in_epoch
+    r = requests.get(api_base_url4 + str(cur_time_in_epoch))
+    j = json.loads(r.content)
+    total_news_count = len(j)
+
+    speech_output = "Here is the top crypto related headlines from last 24 hours. This news service is brought to you by cointelegraph. "
+    for count in range(total_news_count):
+        publish_time_in_epoch = int(j[count]["published_on"])
+        if publish_time_in_epoch >= last_time_in_epoch:
+            news_headlines = j[count]["title"].encode('utf-8')
+            speech_output += news_headlines + ". "
+        else:
+            break
+
+    session_attributes['userPromptedFor_getLatestNews'] = True
+    speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no.";
+    reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))

@@ -373,14 +373,15 @@ def get_latest_news():
 
 # Function-10:
 # ----------
-def get_portfolio(station_name):
-    return {
-        "rotterdam central": "rtd",
-        "delft": "dt",
-        "amsterdam central": "asd",
-        "amsterdam airport": "shl",
-        "schiphol": "shl",
-    }.get(station_name, "unkn")
+def get_portfolio():
+    session_attributes = {}
+    card_title = "CG - My Portfolio"
+    speech_output = "I am still learning how to get your portfolio status. Please check again after few days. "
+    reprompt_text = "Thank you for showing interest. Please check again after few days. "
+    should_end_session = True
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
 
 
 # Function-11:

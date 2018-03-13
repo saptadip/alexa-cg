@@ -128,7 +128,7 @@ def get_welcome_response():
                     "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
                     "I will give you five choices. Tell me what you want me to do. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
-                    "Choice 2:  I C O information. " \
+                    "Choice 2:  Ongoin I C O. " \
                     "Choice 3:  Social Media facts. " \
                     "Choice 4:  My portfolio. " \
                     "Choice 5:  Crypto headlines. "

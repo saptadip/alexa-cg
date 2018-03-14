@@ -354,7 +354,7 @@ def get_latest_news():
     j = json.loads(r.content)
     total_news_count = len(j)
 
-    speech_output = "Here is the top crypto related headlines from last 24 hours. This news service is brought to you by cointelegraph. "
+    speech_output = "Here is the top crypto related headlines from last 24 hours. "
     for count in range(total_news_count):
         publish_time_in_epoch = int(j[count]["published_on"])
         if publish_time_in_epoch >= last_time_in_epoch:

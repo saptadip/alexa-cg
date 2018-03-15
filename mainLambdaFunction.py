@@ -56,33 +56,37 @@ def on_intent(intent_request, session, event):
 
     # handle NO intent after the user has been prompted
     if intent_name == 'AMAZON.NoIntent':
-        if session.get('session_attributes', {}).get('userPromptedFor_getCryptoPrice'):
-            del session['session_attributes']['userPromptedFor_getCryptoPrice']
+        if session['attributes']['userPromptedFor_getCryptoPrice']:
+            del session['attributes']['userPromptedFor_getCryptoPrice']
             return handle_session_end_request()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
-            del session['session_attributes']['userPromptedFor_getIcoInfo']
+        elif session['attributes']['userPromptedFor_getIcoInfo']:
+            del session['attributes']['userPromptedFor_getIcoInfo']
             return handle_session_end_request()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getLatestNews'):
-            del session['session_attributes']['userPromptedFor_getLatestNews']
+        elif session['attributes']['userPromptedFor_getLatestNews']:
+            del session['attributes']['userPromptedFor_getLatestNews']
             return handle_session_end_request()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
-            del session['session_attributes']['userPromptedFor_getQuickFacts']
+        elif session['attributes']['userPromptedFor_getQuickFacts']:
+            del session['attributes']['userPromptedFor_getQuickFacts']
             return handle_session_end_request()
+        else:
+            raise ValueError("Invalid intent")
 
     # handle YES intent after the user has been prompted
     if intent_name == "AMAZON.YesIntent":
-        if session.get('session_attributes', {}).get('userPromptedFor_getCryptoPrice'):
-            del session['session_attributes']['userPromptedFor_getCryptoPrice']
+        if session['attributes']['userPromptedFor_getCryptoPrice']:
+            del session['attributes']['userPromptedFor_getCryptoPrice']
             return get_welcome_response()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
-            del session['session_attributes']['userPromptedFor_getIcoInfo']
+        elif session['attributes']['userPromptedFor_getIcoInfo']:
+            del session['attributes']['userPromptedFor_getIcoInfo']
             return get_welcome_response()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getLatestNews'):
-            del session['session_attributes']['userPromptedFor_getLatestNews']
+        elif session['attributes']['userPromptedFor_getLatestNews']:
+            del session['attributes']['userPromptedFor_getLatestNews']
             return get_welcome_response()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getQuickFacts'):
-            del session['session_attributes']['userPromptedFor_getQuickFacts']
+        elif session['attributes']['userPromptedFor_getQuickFacts']:
+            del session['attributes']['userPromptedFor_getQuickFacts']
             return get_welcome_response()
+        else:
+            raise ValueError("Invalid intent")
 
     if intent_name == "GetCryptoPrice":
         return get_crypto_price()
@@ -128,7 +132,7 @@ def get_welcome_response():
                     "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
                     "I will give you five choices. Tell me what you want me to do. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
-                    "Choice 2:  Ongoin I C O. " \
+                    "Choice 2:  Ongoing I C O. " \
                     "Choice 3:  Social Media facts. " \
                     "Choice 4:  My portfolio. " \
                     "Choice 5:  Crypto headlines. "
@@ -162,7 +166,7 @@ def get_crypto_price():
 
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
-    session_attributes['userPromptedFor_getCryptoPrice'] = True
+    session_attributes = {"userPromptedFor_getCryptoPrice" : True}
     speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -195,7 +199,7 @@ def get_ico_info():
 
         speech_output += "Name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
 
-    session_attributes['userPromptedFor_getIcoInfo'] = True
+    session_attributes = {"userPromptedFor_getIcoInfo" : True}
     speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes or no."
     reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
@@ -325,7 +329,7 @@ def collect_social_media_info(intent):
                 fb_link = "not available"
 
 
-            session_attributes['userPromptedFor_getQuickFacts'] = True
+            session_attributes = {"userPromptedFor_getQuickFacts" : True}
             speech_output = " I collected all the latest social media related activities on " + currency_name + " and created a personalized report card for you. So are you ready? Here we go: " \
                             "Twitter account name is: " + twtr_acc_name + ". Number of followers on Twitter is: " + twtr_follower_count + ". Total tweet count is: " + twtr_tweet_count + ". Total number of tweets liked by the users is: " + twtr_like_count + ". " \
                             "Reddit account name is: " + rdit_acc_name + ". Number of active users on Reddit is: " + rdit_actv_user_count + ". Total subscriber count on reddit is: " + rdit_subscrb_count + ". Number of posts per hour is: " + rdit_posts_per_hour + ". Number of comments per hour is: " + rdit_comnts_per_hour + ". Number of posts per day is: " + rdit_posts_per_day + ". Number of comments per day is: " + rdit_comnts_per_day + ". " \
@@ -363,7 +367,7 @@ def get_latest_news():
         else:
             break
 
-    session_attributes['userPromptedFor_getLatestNews'] = True
+    session_attributes = {"userPromptedFor_getLatestNews" : True}
     speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no.";
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -382,6 +386,34 @@ def get_portfolio():
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+
+# Function-13: Date formatting in human readable format
+# -----------------------------------------------------
+def date_formatter(input_date):
+    a = input_date.replace("-", ":")
+    b = a.replace(" ", ":")
+    c = list(map(int, b.split(":")))
+    for i in range(3):
+        c.append(0)
+    d = tuple(c)
+    d = time.mktime(d)
+    formatted_date = time.strftime("%A %d %B %Y", time.gmtime(d))
+    formatted_time = time.strftime("%r", time.gmtime(d))
+    return formatted_date, formatted_time
+
+
+# Function-14: Get Currency Code
+# ------------------------------
+def get_currency_code(currency_name):
+    return {
+        "bitcoin": "1182",
+        "ethereum": "7605",
+        "litecoin": "3808",
+    }.get(currency_name, "unkn")
+
 
 
 # Function-11:
@@ -415,31 +447,6 @@ def build_response(session_attributes, speechlet_response):
         "sessionAttributes": session_attributes,
         "response": speechlet_response
     }
-
-
-# Function-13: Date formatting in human readable format
-# -----------------------------------------------------
-def date_formatter(input_date):
-    a = input_date.replace("-", ":")
-    b = a.replace(" ", ":")
-    c = list(map(int, b.split(":")))
-    for i in range(3):
-        c.append(0)
-    d = tuple(c)
-    d = time.mktime(d)
-    formatted_date = time.strftime("%A %d %B %Y", time.gmtime(d))
-    formatted_time = time.strftime("%r", time.gmtime(d))
-    return formatted_date, formatted_time
-
-
-# Function-14: Get Currency Code
-# ------------------------------
-def get_currency_code(currency_name):
-    return {
-        "bitcoin": "1182",
-        "ethereum": "7605",
-        "litecoin": "3808",
-    }.get(currency_name, "unkn")
 
 
 # Supporting Functions Declaration End

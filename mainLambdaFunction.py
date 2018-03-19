@@ -11,6 +11,13 @@ api_base_url2 = os.environ['api_base_url2']
 api_base_url3 = os.environ['api_base_url3']
 api_base_url4 = os.environ['api_base_url4']
 
+session_attributes = { 
+                        "userPromptedFor_getCryptoPrice" : "",
+                        "userPromptedFor_getIcoInfo" : "",
+                        "userPromptedFor_getLatestNews" : "",
+                        "userPromptedFor_getQuickFacts" : "",
+}
+
 # Main Lambda Fucntion body
 # -------------------------
 def lambda_handler(event, context):
@@ -69,7 +76,7 @@ def on_intent(intent_request, session, event):
             del session['attributes']['userPromptedFor_getQuickFacts']
             return handle_session_end_request()
         else:
-            raise ValueError("Invalid intent")
+            return handle_session_end_request()
 
     # handle YES intent after the user has been prompted
     if intent_name == "AMAZON.YesIntent":
@@ -86,7 +93,7 @@ def on_intent(intent_request, session, event):
             del session['attributes']['userPromptedFor_getQuickFacts']
             return get_welcome_response()
         else:
-            raise ValueError("Invalid intent")
+            return handle_session_end_request()
 
     if intent_name == "GetCryptoPrice":
         return get_crypto_price()
@@ -103,7 +110,7 @@ def on_intent(intent_request, session, event):
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
         return handle_session_end_request()
     else:
-        raise ValueError("Invalid intent")
+        return handle_session_end_request()
 
 
 # Function-4: On Session End
@@ -117,10 +124,11 @@ def on_session_ended(session_ended_request, session):
 # ----------------------------
 def handle_session_end_request():
     card_title = "Crypto Genie - Thanks"
-    speech_output = "Thank you for using the Crypto Genie. Call me anytime you need assistance to explore this amazing world of crypto currencies. I will take you to the moon!! Good bye. "
+    speech_output = "Thank you for using Crypto Genie. Call me anytime you need assistance to explore this amazing world of crypto currencies. I will take you to the moon!! Good bye. "
     should_end_session = True
 
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
 
 
 # Function-6: Show Welcome Message
@@ -145,14 +153,12 @@ def get_welcome_response():
 # Function-7: On Getting Crypto Price Intent Request
 # --------------------------------------------------
 def get_crypto_price():
-    session_attributes = {}
-    card_title = "CG - Latest Crypto Prices"
+    card_title = "Top 10 Crypto Prices"
+    should_end_session = False
     speech_output = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
     reprompt_text = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
-    should_end_session = False
-    card_title = "Top 10 Crypto Prices "
 
     r = requests.get(api_base_url1)
     j = json.loads(r.content)
@@ -166,7 +172,7 @@ def get_crypto_price():
 
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
-    session_attributes = {"userPromptedFor_getCryptoPrice" : True}
+    session_attributes["userPromptedFor_getCryptoPrice"] = "true"
     speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -177,10 +183,12 @@ def get_crypto_price():
 # Function-8: On Getting ICO Info Intent Request
 # ----------------------------------------------
 def get_ico_info():
-    session_attributes = {}
     card_title = "CG - Latest ICOs"
-    reprompt_text = ""
     should_end_session = False
+    speech_output = "Hmm...I am sorry. I couldn't get the I C O details. " \
+                    "Please try again after sometime. "
+    reprompt_text = "Hmm...I am sorry. I couldn't get the I C O details. " \
+                    "Please try again after sometime. "
 
     ico_live_req = requests.get(api_base_url2)
     ico_live_json_resp = json.loads(ico_live_req.content)
@@ -197,9 +205,9 @@ def get_ico_info():
         fmtd_ico_strt_dt, fmtd_ico_strt_tm = date_formatter(ico_strt)
         fmtd_ico_end_dt, fmtd_ico_end_tm = date_formatter(ico_end)
 
-        speech_output += "Name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
+        speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
 
-    session_attributes = {"userPromptedFor_getIcoInfo" : True}
+    session_attributes["userPromptedFor_getIcoInfo"] = "true"
     speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes or no."
     reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
@@ -235,7 +243,6 @@ def build_dialogue_response(message, session_attributes={}):
 
 
 def collect_social_media_info(intent):
-    session_attributes = {}
     card_title = "CG - Social Media Facts"
     speech_output = "Sorry, I do not know the currency you just said. Please try again."
     reprompt_text = "If you are not sure, try some well know currency. Like: Bitcoin."
@@ -329,7 +336,7 @@ def collect_social_media_info(intent):
                 fb_link = "not available"
 
 
-            session_attributes = {"userPromptedFor_getQuickFacts" : True}
+            session_attributes["userPromptedFor_getQuickFacts"] = "true"
             speech_output = " I collected all the latest social media related activities on " + currency_name + " and created a personalized report card for you. So are you ready? Here we go: " \
                             "Twitter account name is: " + twtr_acc_name + ". Number of followers on Twitter is: " + twtr_follower_count + ". Total tweet count is: " + twtr_tweet_count + ". Total number of tweets liked by the users is: " + twtr_like_count + ". " \
                             "Reddit account name is: " + rdit_acc_name + ". Number of active users on Reddit is: " + rdit_actv_user_count + ". Total subscriber count on reddit is: " + rdit_subscrb_count + ". Number of posts per hour is: " + rdit_posts_per_hour + ". Number of comments per hour is: " + rdit_comnts_per_hour + ". Number of posts per day is: " + rdit_posts_per_day + ". Number of comments per day is: " + rdit_comnts_per_day + ". " \
@@ -343,7 +350,6 @@ def collect_social_media_info(intent):
 
 
 def get_latest_news():
-    session_attributes = {}
     card_title = "CG - Crypto News Headlines"
     speech_output = "Hmm...I am sorry. I couldn't get the latest news. " \
                     "Please try again after sometime. "
@@ -367,7 +373,7 @@ def get_latest_news():
         else:
             break
 
-    session_attributes = {"userPromptedFor_getLatestNews" : True}
+    session_attributes["userPromptedFor_getLatestNews"] = "true"
     speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no.";
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -378,7 +384,6 @@ def get_latest_news():
 # Function-10:
 # ----------
 def get_portfolio():
-    session_attributes = {}
     card_title = "CG - My Portfolio"
     speech_output = "I am still learning how to get your portfolio status. Please check again after few days. "
     reprompt_text = "Thank you for showing interest. Please check again after few days. "

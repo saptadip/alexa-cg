@@ -337,11 +337,11 @@ def collect_social_media_info(intent):
 
 
             session_attributes["userPromptedFor_getQuickFacts"] = "true"
-            speech_output = " I collected all the latest social media related activities on " + currency_name + " and created a personalized report card for you. So are you ready? Here we go: " \
-                            "Twitter account name is: " + twtr_acc_name + ". Number of followers on Twitter is: " + twtr_follower_count + ". Total tweet count is: " + twtr_tweet_count + ". Total number of tweets liked by the users is: " + twtr_like_count + ". " \
-                            "Reddit account name is: " + rdit_acc_name + ". Number of active users on Reddit is: " + rdit_actv_user_count + ". Total subscriber count on reddit is: " + rdit_subscrb_count + ". Number of posts per hour is: " + rdit_posts_per_hour + ". Number of comments per hour is: " + rdit_comnts_per_hour + ". Number of posts per day is: " + rdit_posts_per_day + ". Number of comments per day is: " + rdit_comnts_per_day + ". " \
-                            "On Facebook number of likes received on the homepage is: " + fb_like_count + ". Number of people talking about " + currency_name + " on facebook is: " + fb_talking_count + ". " \
-                            "So that is all I can find on social media about " + currency_name + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
+            speech_output = " I collected all the latest social media related activities on " + str(currency_name) + " and created a personalized report card for you. So are you ready? Here we go: " \
+                            "Twitter account name is: " + str(twtr_acc_name) + ". Number of followers on Twitter is: " + str(twtr_follower_count) + ". Total tweet count is: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users is: " + twtr_like_count + ". " \
+                            "Reddit account name is: " + str(rdit_acc_name) + ". Number of active users on Reddit is: " + str(rdit_actv_user_count) + ". Total subscriber count on reddit is: " + str(rdit_subscrb_count) + ". Number of posts per hour is: " + str(rdit_posts_per_hour) + ". Number of comments per hour is: " + str(rdit_comnts_per_hour) + ". Number of posts per day is: " + str(rdit_posts_per_day) + ". Number of comments per day is: " + str(rdit_comnts_per_day) + ". " \
+                            "On Facebook number of likes received on the homepage is: " + str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
+                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
             reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
@@ -374,7 +374,7 @@ def get_latest_news():
             break
 
     session_attributes["userPromptedFor_getLatestNews"] = "true"
-    speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no.";
+    speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it for free!! If you like then say yes, if not, then say no.";
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(

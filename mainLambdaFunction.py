@@ -138,7 +138,7 @@ def get_welcome_response():
     card_title = "Crypto Genie"
     speech_output = "Hello! I am Crypto Genie. " \
                     "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
-                    "I will give you five choices. Tell me what you want me to do. Your options are: " \
+                    "I will give you five choices. Tell me what you want me to do by selecting the choice number. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
                     "Choice 2:  Ongoing I C O . " \
                     "Choice 3:  Social Media facts. " \
@@ -173,7 +173,7 @@ def get_crypto_price():
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
     session_attributes["userPromptedFor_getCryptoPrice"] = "true"
-    speech_output += "So I hope that I successfully fulfilled your request! Let's go for a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
+    speech_output += "So I hope that I successfully fulfilled your request! Do you want me to serve you another request? I will do it free for you!! If you like then say yes. If you want to exit, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
@@ -208,7 +208,7 @@ def get_ico_info():
         speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Start time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". End time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
 
     session_attributes["userPromptedFor_getIcoInfo"] = "true"
-    speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes to continue or no to exit."
+    speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes to continue or say no to exit."
     reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
@@ -341,7 +341,7 @@ def collect_social_media_info(intent):
                             "Twitter account statistics. Account name: " + str(twtr_acc_name) + ". Number of followers: " + str(twtr_follower_count) + ". Total tweet count: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users: " + twtr_like_count + ". " \
                             "Reddit account statistics. Account name: " + str(rdit_acc_name) + ". Number of active users: " + str(rdit_actv_user_count) + ". Total number of subscribers: " + str(rdit_subscrb_count) + ". Number of posts per hour: " + str(rdit_posts_per_hour) + ". Number of comments per hour: " + str(rdit_comnts_per_hour) + ". Number of posts per day: " + str(rdit_posts_per_day) + ". Number of comments per day: " + str(rdit_comnts_per_day) + ". " \
                             "Facebook account statistics. Number of likes: " + str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
-                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
+                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
             reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
@@ -374,7 +374,7 @@ def get_latest_news():
             break
 
     session_attributes["userPromptedFor_getLatestNews"] = "true"
-    speech_output += "That's all for now. Do you want me to serve another request? I will do it for free!! If you like then say yes, if not, then say no.";
+    speech_output += "That's all for now. Do you want me to serve another request? I will do it for free!! If you like to continue then say yes. If not, then say no.";
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(

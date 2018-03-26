@@ -137,7 +137,7 @@ def get_welcome_response():
     session_attributes = {}
     card_title = "Crypto Genie"
     speech_output = "Hello! I am Crypto Genie. " \
-                    "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
+                    "I can help you to get all crypto currency related information very quickly. " \
                     "I will give you five choices. Tell me what you want me to do by selecting the choice number. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
                     "Choice 2:  Ongoing I C O . " \

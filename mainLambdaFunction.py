@@ -1,8 +1,11 @@
 import os
 import time
 import json
+import boto3
 import urllib
+import decimal
 import requests
+from boto3.dynamodb.conditions import Key, Attr
 
 # Variable Declaration
 # --------------------
@@ -10,12 +13,14 @@ api_base_url1 = os.environ['api_base_url1']
 api_base_url2 = os.environ['api_base_url2']
 api_base_url3 = os.environ['api_base_url3']
 api_base_url4 = os.environ['api_base_url4']
+api_base_url5 = os.environ['api_base_url5']
 
 session_attributes = { 
                         "userPromptedFor_getCryptoPrice" : "",
                         "userPromptedFor_getIcoInfo" : "",
                         "userPromptedFor_getLatestNews" : "",
                         "userPromptedFor_getQuickFacts" : "",
+                        "userPromptedFor_getPortfolioStatus" : "",
 }
 
 # Main Lambda Fucntion body
@@ -75,6 +80,9 @@ def on_intent(intent_request, session, event):
         elif session['attributes']['userPromptedFor_getQuickFacts']:
             del session['attributes']['userPromptedFor_getQuickFacts']
             return handle_session_end_request()
+        elif session['attributes']['userPromptedFor_getPortfolioStatus']:
+            del session['attributes']['userPromptedFor_getPortfolioStatus']
+            return handle_session_end_request()
         else:
             return handle_session_end_request()
 
@@ -92,6 +100,9 @@ def on_intent(intent_request, session, event):
         elif session['attributes']['userPromptedFor_getQuickFacts']:
             del session['attributes']['userPromptedFor_getQuickFacts']
             return get_welcome_response()
+        elif session['attributes']['userPromptedFor_getPortfolioStatus']:
+            del session['attributes']['userPromptedFor_getPortfolioStatus']
+            return get_welcome_response()
         else:
             return handle_session_end_request()
 
@@ -102,7 +113,7 @@ def on_intent(intent_request, session, event):
     elif intent_name == "GetQuickFacts":
         return get_quick_facts(intent, event)
     elif intent_name == "GetPortfolio":
-        return get_portfolio()
+        return get_portfolio(intent, event)
     elif intent_name == "GetLatestNews":
         return get_latest_news()
     elif intent_name == "AMAZON.HelpIntent":
@@ -137,10 +148,10 @@ def get_welcome_response():
     session_attributes = {}
     card_title = "Crypto Genie"
     speech_output = "Hello! I am Crypto Genie. " \
-                    "I can help you to get all crypto currency related information very quickly. " \
-                    "I will give you five choices. Tell me what you want me to do by selecting the choice number. Your options are: " \
+                    "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
+                    "I will give you five choices. Tell me what you want me to do. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
-                    "Choice 2:  Ongoing I C O . " \
+                    "Choice 2:  Ongoing I C O. " \
                     "Choice 3:  Social Media facts. " \
                     "Choice 4:  My portfolio. " \
                     "Choice 5:  Crypto headlines. "
@@ -173,7 +184,7 @@ def get_crypto_price():
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
     session_attributes["userPromptedFor_getCryptoPrice"] = "true"
-    speech_output += "So I hope that I successfully fulfilled your request! Do you want me to serve you another request? I will do it free for you!! If you like then say yes. If you want to exit, then say no."
+    speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
@@ -195,7 +206,7 @@ def get_ico_info():
 #   ico_live_count = len(ico_live_json_resp['ico']['live'])
     ico_live_count = 5
 
-    speech_output = " That was a smart choice! Great! Let me search for currently ongoing I C O . Hm, I have found " + str(ico_live_count) + " I C O. Here is the list: "
+    speech_output = " That was a smart choice! Great! Let me search for currently ongoing I C O. Hm, I have found " + str(ico_live_count) + " I C O. Here is the list: "
     for ico_count in range(ico_live_count):
         ico_name = ico_live_json_resp['ico']['live'][ico_count]['name']
         ico_desc = ico_live_json_resp['ico']['live'][ico_count]['description']
@@ -205,10 +216,10 @@ def get_ico_info():
         fmtd_ico_strt_dt, fmtd_ico_strt_tm = date_formatter(ico_strt)
         fmtd_ico_end_dt, fmtd_ico_end_tm = date_formatter(ico_end)
 
-        speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Start time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". End time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
+        speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
 
     session_attributes["userPromptedFor_getIcoInfo"] = "true"
-    speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes to continue or say no to exit."
+    speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes or no."
     reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
@@ -341,7 +352,7 @@ def collect_social_media_info(intent):
                             "Twitter account statistics. Account name: " + str(twtr_acc_name) + ". Number of followers: " + str(twtr_follower_count) + ". Total tweet count: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users: " + twtr_like_count + ". " \
                             "Reddit account statistics. Account name: " + str(rdit_acc_name) + ". Number of active users: " + str(rdit_actv_user_count) + ". Total number of subscribers: " + str(rdit_subscrb_count) + ". Number of posts per hour: " + str(rdit_posts_per_hour) + ". Number of comments per hour: " + str(rdit_comnts_per_hour) + ". Number of posts per day: " + str(rdit_posts_per_day) + ". Number of comments per day: " + str(rdit_comnts_per_day) + ". " \
                             "Facebook account statistics. Number of likes: " + str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
-                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
+                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
             reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
@@ -369,12 +380,12 @@ def get_latest_news():
         publish_time_in_epoch = int(j[count]["published_on"])
         if publish_time_in_epoch >= last_time_in_epoch:
             news_headlines = j[count]["title"].encode('utf-8')
-            speech_output += news_headlines + "     . "
+            speech_output += news_headlines + ". "
         else:
             break
 
     session_attributes["userPromptedFor_getLatestNews"] = "true"
-    speech_output += "That's all for now. Do you want me to serve another request? I will do it for free!! If you like to continue then say yes. If not, then say no.";
+    speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it for free!! If you like then say yes, if not, then say no.";
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
@@ -383,15 +394,97 @@ def get_latest_news():
 
 # Function-10:
 # ----------
-def get_portfolio():
-    card_title = "CG - My Portfolio"
-    speech_output = "I am still learning how to get your portfolio status. Please check again after few days. "
-    reprompt_text = "Thank you for showing interest. Please check again after few days. "
-    should_end_session = True
+def get_portfolio(intent, event):
+    dynamodb = boto3.resource('dynamodb')
+    tablename = 'cg-user-details'
+    table = dynamodb.Table(tablename)
+
+    #user_id = event['session']['user']['userId']
+    user_id = "6267"
+    user_status = check_user_account(table, user_id)
+
+    if user_status:
+        return get_portfolio_details(intent, event, table)
+    else:
+        dialog_state = event['request']['dialogState']
+        if dialog_state in ("STARTED", "IN_PROGRESS"):
+            return continue_dialog()
+        elif dialog_state == "COMPLETED":
+            return create_user_account(intent, event, table)
+        else:
+            return handle_session_end_request()
+
+
+
+def check_user_account(table, user_id):
+    response = table.query(KeyConditionExpression=Key('userid').eq(user_id))
+    items = response['Items']
+    if not items:
+        return False
+    else:
+        return True
+
+
+
+def create_user_account(intent, event, table):
+    table.put_item(
+        item={
+            'username': 'ruanb',
+            'first_name': 'ruan',
+            'last_name': 'bekker',
+            'age': 30,
+            'account_type': 'administrator',
+            'portfolio' : '[{ "cur": "" , "qty": "", "buy_prc": "", "lst_prc": "" }]',
+    }
+)
+
+
+def get_portfolio_details(intent, event, table):
+    card_title = "CG - My Portfolio Status"
+    speech_output = "I am unable to get your portfolio status. Please try again later. "
+    reprompt_text = "Thank you for your interest. Please check again after few days. "
+    should_end_session = False
+
+    portfolio_val_old = 0.0
+    portfolio_val_new = 0.0
+
+    #user_id = event['session']['user']['userId']
+    user_id = "6267"
+    #response = table.query(KeyConditionExpression=Key('userid').eq(user_id))
+    response = table.get_item(Key={'userid' : '6267','name' : 'shamik'})
+    items = response['Item']
+    portfolio = items['portfolio'].encode('UTF8')
+    portfolio_list = json.loads(portfolio)
+
+    for x in portfolio_list:
+        cur = x['cur'].encode('UTF8')
+        qty = float(x['qty'].encode('UTF8'))
+        buy_prc = float(x['buy_prc'].encode('UTF8'))
+        portfolio_val_old += buy_prc * qty
+
+        r = requests.get(api_base_url5 + cur)
+        j = json.loads(r.content)
+        cur_prc = float(j[0]['price_usd'].encode('UTF8'))
+        portfolio_val_new += cur_prc * qty
+
+    portfolio_prcnt_change = ((portfolio_val_new - portfolio_val_old) / portfolio_val_old) * 100
+    portfolio_prcnt_change_abs = round(decimal.Decimal(abs(portfolio_prcnt_change)),2)
+
+    if portfolio_prcnt_change > 0:
+        portfolio_status = "profit"
+        portfolio_msg = "I am so happy to say that "
+    else:
+        portfolio_status = "loss"
+        portfolio_msg = "Hmm. I am sorry to say that "
+
+
+    session_attributes["userPromptedFor_getPortfolioStatus"] = "true"
+    speech_output = "The current valuation of your portfolio is. " + str(portfolio_val_new) + " dollars. " + portfolio_msg + "your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " + str(portfolio_status) + ". Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
+    reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
+
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
-
 
 
 

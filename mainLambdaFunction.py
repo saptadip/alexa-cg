@@ -1,14 +1,27 @@
 import os
 import time
 import json
+import boto3
 import urllib
+import decimal
 import requests
+from boto3.dynamodb.conditions import Key, Attr
 
 # Variable Declaration
 # --------------------
 api_base_url1 = os.environ['api_base_url1']
 api_base_url2 = os.environ['api_base_url2']
+api_base_url3 = os.environ['api_base_url3']
+api_base_url4 = os.environ['api_base_url4']
+api_base_url5 = os.environ['api_base_url5']
 
+session_attributes = { 
+                        "userPromptedFor_getCryptoPrice" : "",
+                        "userPromptedFor_getIcoInfo" : "",
+                        "userPromptedFor_getLatestNews" : "",
+                        "userPromptedFor_getQuickFacts" : "",
+                        "userPromptedFor_getPortfolioStatus" : "",
+}
 
 # Main Lambda Fucntion body
 # -------------------------
@@ -23,7 +36,8 @@ def lambda_handler(event, context):
     if event["request"]["type"] == "LaunchRequest":
         return on_launch(event["request"], event["session"])
     elif event["request"]["type"] == "IntentRequest":
-        return on_intent(event["request"], event["session"])
+        #return on_intent(event["request"], event["session"], event)
+        return on_intent(event)
     elif event["request"]["type"] == "SessionEndedRequest":
         return on_session_ended(event["request"], event["session"])
 
@@ -49,42 +63,67 @@ def on_launch(launch_request, session):
 
 # Function-3: On Receiving User Intent
 # ------------------------------------
-def on_intent(intent_request, session):
-    intent = intent_request["intent"]
-    intent_name = intent_request["intent"]["name"]
+def on_intent(event):
+    intent = event["request"]["intent"]
+    intent_name = event["request"]["intent"]["name"]
+    session = event["session"]
 
     # handle NO intent after the user has been prompted
     if intent_name == 'AMAZON.NoIntent':
-        if session.get('session_attributes', {}).get('userPromptedFor_getCryptoPrice'):
-            del session['session_attributes']['userPromptedFor_getCryptoPrice']
+        if session['attributes']['userPromptedFor_getCryptoPrice']:
+            del session['attributes']['userPromptedFor_getCryptoPrice']
             return handle_session_end_request()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
-            del session['session_attributes']['userPromptedFor_getIcoInfo']
+        elif session['attributes']['userPromptedFor_getIcoInfo']:
+            del session['attributes']['userPromptedFor_getIcoInfo']
+            return handle_session_end_request()
+        elif session['attributes']['userPromptedFor_getLatestNews']:
+            del session['attributes']['userPromptedFor_getLatestNews']
+            return handle_session_end_request()
+        elif session['attributes']['userPromptedFor_getQuickFacts']:
+            del session['attributes']['userPromptedFor_getQuickFacts']
+            return handle_session_end_request()
+        elif session['attributes']['userPromptedFor_getPortfolioStatus']:
+            del session['attributes']['userPromptedFor_getPortfolioStatus']
+            return handle_session_end_request()
+        else:
             return handle_session_end_request()
 
     # handle YES intent after the user has been prompted
     if intent_name == "AMAZON.YesIntent":
-        if session.get('session_attributes', {}).get('userPromptedFor_getCryptoPrice'):
-            del session['session_attributes']['userPromptedFor_getCryptoPrice']
+        if session['attributes']['userPromptedFor_getCryptoPrice']:
+            del session['attributes']['userPromptedFor_getCryptoPrice']
             return get_welcome_response()
-        elif session.get('session_attributes', {}).get('userPromptedFor_getIcoInfo'):
-            del session['session_attributes']['userPromptedFor_getIcoInfo']
+        elif session['attributes']['userPromptedFor_getIcoInfo']:
+            del session['attributes']['userPromptedFor_getIcoInfo']
             return get_welcome_response()
+        elif session['attributes']['userPromptedFor_getLatestNews']:
+            del session['attributes']['userPromptedFor_getLatestNews']
+            return get_welcome_response()
+        elif session['attributes']['userPromptedFor_getQuickFacts']:
+            del session['attributes']['userPromptedFor_getQuickFacts']
+            return get_welcome_response()
+        elif session['attributes']['userPromptedFor_getPortfolioStatus']:
+            del session['attributes']['userPromptedFor_getPortfolioStatus']
+            return get_welcome_response()
+        else:
+            return handle_session_end_request()
 
     if intent_name == "GetCryptoPrice":
         return get_crypto_price()
     elif intent_name == "GetIcoInfo":
         return get_ico_info()
     elif intent_name == "GetQuickFacts":
-        return get_quick_facts()
+        return get_quick_facts(intent, event)
     elif intent_name == "GetPortfolio":
-        return get_portfolio()
+        return get_portfolio(intent, event)
+    elif intent_name == "GetLatestNews":
+        return get_latest_news()
     elif intent_name == "AMAZON.HelpIntent":
         return get_welcome_response()
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
         return handle_session_end_request()
     else:
-        raise ValueError("Invalid intent")
+        return handle_session_end_request()
 
 
 # Function-4: On Session End
@@ -98,10 +137,11 @@ def on_session_ended(session_ended_request, session):
 # ----------------------------
 def handle_session_end_request():
     card_title = "Crypto Genie - Thanks"
-    speech_output = "Thank you for using the Crypto Genie. Call me anytime you need assistance to explore this amazing world of crypto currencies. I will take you to the moon!! Good bye. "
+    speech_output = "Thank you for using Crypto Genie. Call me anytime you need assistance to explore this amazing world of crypto currencies. I will take you to the moon!! Good bye. "
     should_end_session = True
 
     return build_response({}, build_speechlet_response(card_title, speech_output, None, should_end_session))
+
 
 
 # Function-6: Show Welcome Message
@@ -113,10 +153,10 @@ def get_welcome_response():
                     "I can help you to explore the amazing world of crypto currencies. Don't worry, our journey will be full of fun. " \
                     "I will give you five choices. Tell me what you want me to do. Your options are: " \
                     "Choice 1:  Top crypto currency prices. " \
-                    "Choice 2:  I C O information. " \
+                    "Choice 2:  Ongoing I C O. " \
                     "Choice 3:  Social Media facts. " \
                     "Choice 4:  My portfolio. " \
-                    "Choice 5:  Latest news. "
+                    "Choice 5:  Crypto headlines. "
     reprompt_text = "Please choose any option between one to five"
     should_end_session = False
     return build_response(session_attributes, build_speechlet_response(
@@ -126,14 +166,12 @@ def get_welcome_response():
 # Function-7: On Getting Crypto Price Intent Request
 # --------------------------------------------------
 def get_crypto_price():
-    session_attributes = {}
-    card_title = "Latest Crypto Prices"
+    card_title = "Top 10 Crypto Prices"
+    should_end_session = False
     speech_output = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
     reprompt_text = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
-    should_end_session = False
-    card_title = "Top 10 Crypto Prices "
 
     r = requests.get(api_base_url1)
     j = json.loads(r.content)
@@ -147,8 +185,8 @@ def get_crypto_price():
 
         speech_output += "Rank " + cur_rank + " : " + cur_name + ". Price : " + cur_price + " dollar " + ". ";
 
-    session_attributes['userPromptedFor_getCryptoPrice'] = True
-    speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it for free for you!! If you like then say yes, if not, then say no."
+    session_attributes["userPromptedFor_getCryptoPrice"] = "true"
+    speech_output += "So I hope that I successfully fulfilled your request! Let's go to star bucks and grab a coffee. Do you want me to serve you another request? I will do it free for you!! If you like then say yes, if not, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
     return build_response(session_attributes, build_speechlet_response(
@@ -156,16 +194,18 @@ def get_crypto_price():
 
 
 # Function-8: On Getting ICO Info Intent Request
-# ------------------------//--------------------
+# ----------------------------------------------
 def get_ico_info():
-    session_attributes = {}
-    card_title = "Latest ICOs"
-    reprompt_text = ""
+    card_title = "CG - Latest ICOs"
     should_end_session = False
+    speech_output = "Hmm...I am sorry. I couldn't get the I C O details. " \
+                    "Please try again after sometime. "
+    reprompt_text = "Hmm...I am sorry. I couldn't get the I C O details. " \
+                    "Please try again after sometime. "
 
     ico_live_req = requests.get(api_base_url2)
     ico_live_json_resp = json.loads(ico_live_req.content)
-#    ico_live_count = len(ico_live_json_resp['ico']['live'])
+#   ico_live_count = len(ico_live_json_resp['ico']['live'])
     ico_live_count = 5
 
     speech_output = " That was a smart choice! Great! Let me search for currently ongoing I C O. Hm, I have found " + str(ico_live_count) + " I C O. Here is the list: "
@@ -178,38 +218,301 @@ def get_ico_info():
         fmtd_ico_strt_dt, fmtd_ico_strt_tm = date_formatter(ico_strt)
         fmtd_ico_end_dt, fmtd_ico_end_tm = date_formatter(ico_end)
 
-        speech_output += "Name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
+        speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Time: " + fmtd_ico_strt_tm + ". End date: " + fmtd_ico_end_dt + ". Time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
 
-    session_attributes['userPromptedFor_getIcoInfo'] = True
+    session_attributes["userPromptedFor_getIcoInfo"] = "true"
     speech_output += "So that's all I have at the moment. Do you want me to do anything else? Please say yes or no."
-    reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. "
+    reprompt_text = "Is there something else that I can do for you ? If so, then say yes. If not, then say no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
 
 
-# Function-9:
-# ----------
-def get_quick_facts(station_name):
-    return {
-        "rotterdam central": "rtd",
-        "delft": "dt",
-        "amsterdam central": "asd",
-        "amsterdam airport": "shl",
-        "schiphol": "shl",
-    }.get(station_name, "unkn")
+# Function-9 On Getting Social Media Facts Intent Request:
+# --------------------------------------------------------
+def get_quick_facts(intent, event):
+    dialog_state = event['request']['dialogState']
+    if dialog_state in ("STARTED", "IN_PROGRESS"):
+        return continue_dialog()
+    elif dialog_state == "COMPLETED":
+        return collect_social_media_info(intent)
+    else:
+        return handle_session_end_request()
+
+
+def continue_dialog():
+    message = {}
+    message['should_end_session'] = False
+    message['directives'] = [{'type': 'Dialog.Delegate'}]
+    return build_dialogue_response(message)
+
+
+def build_dialogue_response(message, session_attributes={}):
+    response = {}
+    response['version'] = '1.0'
+    response['sessionAttributes'] = session_attributes
+    response['response'] = message
+    return response
+
+
+def collect_social_media_info(intent):
+    card_title = "CG - Social Media Facts"
+    speech_output = "Sorry, I do not know the currency you just said. Please try again."
+    reprompt_text = "If you are not sure, try some well know currency. Like: Bitcoin."
+    should_end_session = False
+
+    if "Currency" in intent["slots"]:
+       try:
+          currency_name = intent["slots"]["Currency"]["value"]
+       except KeyError:
+          return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+       
+       currency_code = get_currency_code(currency_name.lower())
+
+       if (currency_code != "unkn"):
+            card_title = "CG - Social Media Facts " + currency_name.title()
+            r = requests.get(api_base_url3 + currency_code)
+            j = json.loads(r.content)
+
+          # twitter Account Stats
+          #----------------------
+            try:
+                twtr_acc_name = j['Data']['Twitter']['name']
+            except KeyError:
+                twtr_acc_name = "not available"
+            try:
+                twtr_acc_link = j['Data']['Twitter']['link']
+            except KeyError:
+                twtr_acc_link = "not available"
+            try:
+                twtr_tweet_count = j['Data']['Twitter']['statuses']
+            except KeyError:
+                twtr_tweet_count = "not available"
+            try:
+                twtr_like_count = j['Data']['Twitter']['favourites']
+            except KeyError:
+                twtr_like_count = "not available"
+            try:
+                twtr_follower_count = j['Data']['Twitter']['followers']
+            except KeyError:
+                twtr_follower_count = "not available"
+
+          # reddit Account Stats
+          #---------------------
+            try:
+                rdit_acc_name = j['Data']['Reddit']['name']
+            except KeyError:
+                rdit_acc_name = "not available"
+            try:
+                rdit_acc_link = j['Data']['Reddit']['link']
+            except KeyError:
+                rdit_acc_link = "not available"
+            try:
+                rdit_actv_user_count = j['Data']['Reddit']['active_users']
+            except KeyError:
+                rdit_actv_user_count = "not available"
+            try:
+                rdit_subscrb_count = j['Data']['Reddit']['subscribers']
+            except KeyError:
+                rdit_subscrb_count = "not available"
+            try:
+                rdit_posts_per_hour = j['Data']['Reddit']['posts_per_hour']
+            except KeyError:
+                rdit_posts_per_hour = "not available"
+            try:
+                rdit_comnts_per_hour = j['Data']['Reddit']['comments_per_hour']
+            except KeyError:
+                rdit_comnts_per_hour = "not available"
+            try:
+                rdit_posts_per_day = j['Data']['Reddit']['posts_per_day']
+            except KeyError:
+                rdit_posts_per_day = "not available"
+            try:
+                rdit_comnts_per_day = j['Data']['Reddit']['comments_per_day']
+            except KeyError:
+                rdit_comnts_per_day = "not available"
+
+          # facebook account stats
+          #-----------------------
+            try:
+                fb_like_count = j['Data']['Facebook']['likes']
+            except KeyError:
+                fb_like_count = "not available"
+            try:
+                fb_talking_count = j['Data']['Facebook']['talking_about']
+            except KeyError:
+                fb_talking_count = "not available"
+            try:
+                fb_link = j['Data']['Facebook']['link']
+            except KeyError:
+                fb_link = "not available"
+
+
+            session_attributes["userPromptedFor_getQuickFacts"] = "true"
+            speech_output = " OK. Getting the latest social media related activities on " + str(currency_name) + ". Report is ready. Here we go: " \
+                            "Twitter account statistics. Account name: " + str(twtr_acc_name) + ". Number of followers: " + str(twtr_follower_count) + ". Total tweet count: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users: " + twtr_like_count + ". " \
+                            "Reddit account statistics. Account name: " + str(rdit_acc_name) + ". Number of active users: " + str(rdit_actv_user_count) + ". Total number of subscribers: " + str(rdit_subscrb_count) + ". Number of posts per hour: " + str(rdit_posts_per_hour) + ". Number of comments per hour: " + str(rdit_comnts_per_hour) + ". Number of posts per day: " + str(rdit_posts_per_day) + ". Number of comments per day: " + str(rdit_comnts_per_day) + ". " \
+                            "Facebook account statistics. Number of likes: " + str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
+                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you.  Do you want me to do anything else for you? Please say yes or no."
+            reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+def get_latest_news():
+    card_title = "CG - Crypto News Headlines"
+    speech_output = "Hmm...I am sorry. I couldn't get the latest news. " \
+                    "Please try again after sometime. "
+    reprompt_text = "Hmm...I am sorry. I couldn't get the latest news. " \
+                    "Please try again after sometime. "
+    should_end_session = False
+
+    day_hrs_in_epoch = 86400
+    cur_time_in_epoch = int(time.time())
+    last_time_in_epoch = cur_time_in_epoch - day_hrs_in_epoch
+    r = requests.get(api_base_url4 + str(cur_time_in_epoch))
+    j = json.loads(r.content)
+    total_news_count = len(j)
+
+    speech_output = "Here is the top crypto related headlines from last 24 hours. "
+    for count in range(total_news_count):
+        publish_time_in_epoch = int(j[count]["published_on"])
+        if publish_time_in_epoch >= last_time_in_epoch:
+            news_headlines = j[count]["title"].encode('utf-8')
+            speech_output += news_headlines + ". "
+        else:
+            break
+
+    session_attributes["userPromptedFor_getLatestNews"] = "true"
+    speech_output += "That's all for now. Thank you for using crypto genie news service. Do you want me to serve you another request? I will do it for free!! If you like then say yes, if not, then say no.";
+    reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
 
 
 # Function-10:
 # ----------
-def get_portfolio(station_name):
+def get_portfolio(intent, event):
+    dynamodb = boto3.resource('dynamodb')
+    tablename = 'cg-user-details'
+    table = dynamodb.Table(tablename)
+
+    #user_id = event['session']['user']['userId']
+    user_id = "6267"
+    user_name = check_user_account(table, user_id)
+
+    if user_name:
+        return get_portfolio_details(intent, event, table, user_name)
+    else:
+        dialog_state = event['request']['dialogState']
+        if dialog_state in ("STARTED", "IN_PROGRESS"):
+            return continue_dialog()
+        elif dialog_state == "COMPLETED":
+            return create_user_account(intent, event, table)
+        else:
+            return handle_session_end_request()
+
+
+
+def check_user_account(table, user_id):
+    response = table.query(KeyConditionExpression=Key('userid').eq(user_id))
+    items = response['Items']
+    if not items:
+        return False
+    else:
+        return items[0]['name']
+
+
+
+def create_user_account(intent, event, table):
+    table.put_item(
+        item={
+            'username': 'ruanb',
+            'first_name': 'ruan',
+            'last_name': 'bekker',
+            'age': 30,
+            'account_type': 'administrator',
+            'portfolio' : '[{ "cur": "" , "qty": "", "buy_prc": "", "lst_prc": "" }]',
+    }
+)
+
+
+def get_portfolio_details(intent, event, table, user_name):
+    card_title = "CG - My Portfolio Status"
+    speech_output = "I am unable to get your portfolio status. Please try again later. "
+    reprompt_text = "Thank you for your interest. Please check again after few days. "
+    should_end_session = False
+
+    portfolio_val_old = 0.0
+    portfolio_val_new = 0.0
+
+    #user_id = event['session']['user']['userId']
+    user_id = "6267"
+    response = table.get_item(Key={'userid' : user_id,'name' : user_name})
+    items = response['Item']
+    portfolio = items['portfolio'].encode('UTF8')
+    portfolio_list = json.loads(portfolio)
+
+    for x in portfolio_list:
+        cur = x['cur'].encode('UTF8')
+        qty = float(x['qty'].encode('UTF8'))
+        buy_prc = float(x['buy_prc'].encode('UTF8'))
+        portfolio_val_old += buy_prc * qty
+
+        r = requests.get(api_base_url5 + cur)
+        j = json.loads(r.content)
+        cur_prc = float(j[0]['price_usd'].encode('UTF8'))
+        portfolio_val_new += cur_prc * qty
+
+    portfolio_prcnt_change = ((portfolio_val_new - portfolio_val_old) / portfolio_val_old) * 100
+    portfolio_prcnt_change_abs = round(decimal.Decimal(abs(portfolio_prcnt_change)),2)
+
+    if portfolio_prcnt_change > 0:
+        portfolio_status = "profit"
+        portfolio_msg = "I am so happy to say that "
+    else:
+        portfolio_status = "loss"
+        portfolio_msg = "Hmm. I am sorry to say that "
+
+
+    session_attributes["userPromptedFor_getPortfolioStatus"] = "true"
+    speech_output = "The current valuation of your portfolio is. " + str(portfolio_val_new) + " dollars. " + portfolio_msg + "your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " + str(portfolio_status) + ". Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
+    reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
+
+
+    return build_response(session_attributes, build_speechlet_response(
+        card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+# Function-13: Date formatting in human readable format
+# -----------------------------------------------------
+def date_formatter(input_date):
+    a = input_date.replace("-", ":")
+    b = a.replace(" ", ":")
+    c = list(map(int, b.split(":")))
+    for i in range(3):
+        c.append(0)
+    d = tuple(c)
+    d = time.mktime(d)
+    formatted_date = time.strftime("%A %d %B %Y", time.gmtime(d))
+    formatted_time = time.strftime("%r", time.gmtime(d))
+    return formatted_date, formatted_time
+
+
+# Function-14: Get Currency Code
+# ------------------------------
+def get_currency_code(currency_name):
     return {
-        "rotterdam central": "rtd",
-        "delft": "dt",
-        "amsterdam central": "asd",
-        "amsterdam airport": "shl",
-        "schiphol": "shl",
-    }.get(station_name, "unkn")
+        "bitcoin": "1182",
+        "ethereum": "7605",
+        "litecoin": "3808",
+    }.get(currency_name, "unkn")
+
 
 
 # Function-11:
@@ -244,20 +547,6 @@ def build_response(session_attributes, speechlet_response):
         "response": speechlet_response
     }
 
-# Function-13: Date formatting in human readable format
-# -----------------------------------------------------
-def date_formatter(input_date):
-    a = input_date.replace("-", ":")
-    b = a.replace(" ", ":")
-    c = list(map(int, b.split(":")))
-    for i in range(3):
-        c.append(0)
-    d = tuple(c)
-    d = time.mktime(d)
-    formatted_date = time.strftime("%A %d %B %Y", time.gmtime(d))
-    formatted_time = time.strftime("%r", time.gmtime(d))
-    return formatted_date, formatted_time
 
 # Supporting Functions Declaration End
 # ------------------------------------
-

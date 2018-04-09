@@ -10,19 +10,13 @@ from boto3.dynamodb.conditions import Key, Attr
 
 # Variable Declaration
 # --------------------
-api_base_url1 = os.environ['api_base_url1']
-api_base_url2 = os.environ['api_base_url2']
-api_base_url3 = os.environ['api_base_url3']
-api_base_url4 = os.environ['api_base_url4']
-api_base_url5 = os.environ['api_base_url5']
-
 session_attributes = { 
                         "userPromptedFor_getCryptoPrice" : "",
                         "userPromptedFor_getIcoInfo" : "",
                         "userPromptedFor_getLatestNews" : "",
                         "userPromptedFor_getQuickFacts" : "",
                         "userPromptedFor_getPortfolioStatus" : "",
-}
+                    }
 
 # Main Lambda Fucntion body
 # -------------------------
@@ -123,6 +117,8 @@ def on_intent(event, access_token):
         return get_portfolio(intent, event, access_token)
     elif intent_name == "AddCoin":
         return add_to_portolio(intent, event, access_token)
+    elif intent_name == "DeleteCoin":
+        return del_frm_portolio(intent, event, access_token)
     elif intent_name == "GetLatestNews":
         return get_latest_news()
     elif intent_name == "AMAZON.HelpIntent":
@@ -194,12 +190,11 @@ def get_crypto_price():
     reprompt_text = "Hmm...I am sorry. I couldn't get the latest price details. " \
                     "Please try again after sometime. "
 
-    r = requests.get(api_base_url1)
+    r = requests.get(os.environ['api_base_url1'])
     j = json.loads(r.content)
     currency_count = len(j)
 
-    speech_output = " Thank you for your input! Searching for the latest prices of the top crypto currencies. " \
-                    "According to the market report, today's top " + str(currency_count) + " currency listings are as follows : "
+    speech_output = " Thank you for your input! According to the market report, today's top " + str(currency_count) + " currency listings are as follows : "
     for count in range(currency_count):
         cur_name = j[count]['name']
         cur_rank = j[count]['rank']
@@ -209,7 +204,7 @@ def get_crypto_price():
 
     session_attributes["userPromptedFor_getCryptoPrice"] = "true"
     speech_output += "  So that is all for now. Do you want me to serve you another request? " \
-                     " If you like then say yes, if not, then say no."
+                     " If you like then say yes. If you want me to stop, then say no."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if " \
                     "you want to exit."
 
@@ -227,13 +222,12 @@ def get_ico_info():
     reprompt_text = "Hmm...I am sorry. I couldn't get the I C O details. " \
                     "Please try again after sometime. "
 
-    ico_live_req = requests.get(api_base_url2)
+    ico_live_req = requests.get(os.environ['api_base_url2'])
     ico_live_json_resp = json.loads(ico_live_req.content)
 #   ico_live_count = len(ico_live_json_resp['ico']['live'])
     ico_live_count = 5
 
-    speech_output = " That was a smart choice! Great! Let me search for currently ongoing I C O. " \
-                    "Hm, I have found " + str(ico_live_count) + " I C O. Here is the list: "
+    speech_output = " That was a smart choice! Here is the top " + str(ico_live_count) + " I C O that are currently on going. "
     for ico_count in range(ico_live_count):
         ico_name = ico_live_json_resp['ico']['live'][ico_count]['name']
         ico_desc = ico_live_json_resp['ico']['live'][ico_count]['description']
@@ -244,7 +238,7 @@ def get_ico_info():
         fmtd_ico_end_dt, fmtd_ico_end_tm = date_formatter(ico_end)
 
         speech_output += "I C O name: " + ico_name + ". Start date: " + fmtd_ico_strt_dt + ". Start time: " + fmtd_ico_strt_tm + \
-                         ". End date: " + fmtd_ico_end_dt + ". End time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ". ";
+                         ". End date: " + fmtd_ico_end_dt + ". End time: " + fmtd_ico_end_tm + ". Description: " + ico_desc + ".          ";
 
     session_attributes["userPromptedFor_getIcoInfo"] = "true"
     speech_output += "So that's all I have at the moment. Do you want me to do anything else? " \
@@ -300,7 +294,7 @@ def collect_social_media_info(intent):
 
        if (currency_code != "unkn"):
             card_title = "CG - Social Media Facts " + currency_name.title()
-            r = requests.get(api_base_url3 + currency_code)
+            r = requests.get(os.environ['api_base_url3'] + currency_code)
             j = json.loads(r.content)
 
           # twitter Account Stats
@@ -406,7 +400,7 @@ def get_latest_news():
     day_hrs_in_epoch = 86400
     cur_time_in_epoch = int(time.time())
     last_time_in_epoch = cur_time_in_epoch - day_hrs_in_epoch
-    r = requests.get(api_base_url4 + str(cur_time_in_epoch))
+    r = requests.get(os.environ['api_base_url4'] + str(cur_time_in_epoch))
     j = json.loads(r.content)
     total_news_count = len(j)
 
@@ -415,7 +409,7 @@ def get_latest_news():
         publish_time_in_epoch = int(j[count]["published_on"])
         if publish_time_in_epoch >= last_time_in_epoch:
             news_headlines = j[count]["title"].encode('utf-8')
-            speech_output += news_headlines + ".    "
+            speech_output += news_headlines + ".             "
         else:
             break
 
@@ -444,7 +438,7 @@ def get_portfolio(intent, event, access_token):
             dynamodb = boto3.resource('dynamodb')
             tablename = 'cg-user-details'
             table = dynamodb.Table(tablename)
-            user_id = user_details['user_id']
+            user_id = user_details['user_id'].split(".")[0] + user_details['user_id'].split(".")[2]
             user_name = check_user_account(table, user_id)
 
             if user_name:
@@ -471,7 +465,7 @@ def get_portfolio(intent, event, access_token):
 
 
 def check_user_account(table, user_id):
-    response = table.query(KeyConditionExpression=Key('userid').eq(user_id))
+    response = table.query(KeyConditionExpression=Key('id').eq(user_id))
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         items = response['Items']
         if not items:
@@ -517,24 +511,24 @@ def create_user_account(intent, event, table, user_details):
                 card_title, speech_output, reprompt_text, should_end_session))
 
 
-    input_userid = user_details['user_id']
+    input_userid = user_details['user_id'].split(".")[0] + user_details['user_id'].split(".")[2]
     input_name = portfolio_user_name
-    input_account_type = "new"
-    input_account_status = "active"
-    input_portfolio = [{"cur": portfolio_currency , "qty": portfolio_quantity, "buy_prc": portfolio_price}]
-    input_portfolio_access_time = str(datetime.datetime.now())
+    input_account_type = 1
+    input_account_status = "A"
+    input_portfolio = [{"cur": portfolio_currency , "qty": portfolio_quantity, "prc": portfolio_price}]
+    input_portfolio_access_time = str(datetime.datetime.now()).split(".")[0]
     input_request_serve_count = 0
 
 
     response = table.put_item(
                 Item={
-                'userid': input_userid,
+                'id': input_userid,
                 'name': input_name,
-                'account_type': input_account_type,
-                'account_status': input_account_status,
+                'type': input_account_type,
+                'status': input_account_status,
                 'portfolio' : input_portfolio,
-                'last_access_time': input_portfolio_access_time,
-                'total_request_count' : input_request_serve_count,
+                'lastSeen': input_portfolio_access_time,
+                'totReqCt' : input_request_serve_count,
             }
         )
 
@@ -559,25 +553,24 @@ def get_portfolio_details(intent, event, table, user_key):
     reprompt_text = "Thank you for your interest. Please check again after few days. "
     should_end_session = False
 
-    portfolio_val_old = 0.0
-    portfolio_val_new = 0.0
+    portfolio_val_old = 0
+    portfolio_val_new = 0
     user_id = user_key[0]
     user_name = user_key[1]
 
-    response = table.get_item(Key={'userid' : user_id,'name' : user_name})
+    response = table.get_item(Key={'id' : user_id,'name' : user_name})
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         items = response['Item']
         portfolio = items['portfolio']
-        #portfolio_list = json.loads(portfolio)
-        req_count = int(items['total_request_count']) + 1
-        access_time = str(datetime.datetime.now())
+        req_count = int(items['totReqCt']) + 1
+        access_time = str(datetime.datetime.now()).split(".")[0]
 
         table.update_item(
             Key={
-                'userid': user_id,
+                'id': user_id,
                 'name': user_name
             },
-            UpdateExpression='SET total_request_count = :val1, last_access_time = :val2',
+            UpdateExpression='SET totReqCt = :val1, lastSeen = :val2',
             ExpressionAttributeValues={
                 ':val1': req_count,
                 ':val2': access_time
@@ -592,13 +585,13 @@ def get_portfolio_details(intent, event, table, user_key):
 
     for x in portfolio:
         cur = x['cur'].encode('UTF8')
-        qty = float(x['qty'].encode('UTF8'))
-        buy_prc = float(x['buy_prc'].encode('UTF8'))
+        qty = decimal.Decimal(x['qty'])
+        buy_prc = decimal.Decimal(x['prc'])
         portfolio_val_old += buy_prc * qty
 
-        r = requests.get(api_base_url5 + cur)
+        r = requests.get(os.environ['api_base_url5'] + cur)
         j = json.loads(r.content)
-        cur_prc = float(j[0]['price_usd'].encode('UTF8'))
+        cur_prc = decimal.Decimal(j[0]['price_usd'].encode('UTF8'))
         portfolio_val_new += cur_prc * qty
 
     portfolio_prcnt_change = ((portfolio_val_new - portfolio_val_old) / portfolio_val_old) * 100
@@ -606,15 +599,15 @@ def get_portfolio_details(intent, event, table, user_key):
 
     if portfolio_prcnt_change > 0:
         portfolio_status = "profit"
-        portfolio_msg = "I am so happy to say that "
+        portfolio_msg = "I am so happy "
     else:
         portfolio_status = "loss"
-        portfolio_msg = "Hmm. I am sorry to say that "
+        portfolio_msg = "Hmm. I am sorry "
 
 
     session_attributes["userPromptedFor_getPortfolioStatus"] = "true"
-    speech_output = user_name.split(" ")[0] + ", your current portfolio valuation is. " + str(portfolio_val_new) + \
-                    " dollars. " + portfolio_msg + "your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " \
+    speech_output = "Your current portfolio valuation is. " + str(portfolio_val_new) + " dollars. " + portfolio_msg + "to say " \
+                    + user_name.split(" ")[0] + ", that your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " \
                     + str(portfolio_status) + ". Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -622,6 +615,8 @@ def get_portfolio_details(intent, event, table, user_key):
         card_title, speech_output, reprompt_text, should_end_session))
 
 
+# Function to add coin to portfolio
+#----------------------------------
 
 def add_to_portolio(intent, event, access_token):
     if access_token is not None:
@@ -637,7 +632,7 @@ def add_to_portolio(intent, event, access_token):
             dynamodb = boto3.resource('dynamodb')
             tablename = 'cg-user-details'
             table = dynamodb.Table(tablename)
-            user_id = user_details['user_id']
+            user_id = user_details['user_id'].split(".")[0] + user_details['user_id'].split(".")[2]
             user_name = check_user_account(table, user_id)
 
             if user_name:
@@ -646,7 +641,7 @@ def add_to_portolio(intent, event, access_token):
                 if dialog_state in ("STARTED", "IN_PROGRESS"):
                     return continue_dialog()
                 elif dialog_state == "COMPLETED":
-                    return add_coin_to_portfolio(intent, event, table, user_details)
+                    return add_coin_to_portfolio(intent, event, table, user_key)
                 else:
                     return handle_session_end_request()
             else:
@@ -658,7 +653,6 @@ def add_to_portolio(intent, event, access_token):
                 else:
                     return handle_session_end_request()
     else:
-        session_attributes = {}
         card_title = "CG - Goodbye!"
         speech_output = "Your user details are not available at this time.  Please complete account linking via " \
                         "the Alexa app and try again later."
@@ -669,11 +663,11 @@ def add_to_portolio(intent, event, access_token):
 
 
 
-def add_coin_to_portfolio(intent, event, table, user_details):
-    user_id = user_details['user_id']
-    user_name = check_user_account(table, user_id)
+def add_coin_to_portfolio(intent, event, table, user_key):
+    user_id = user_key[0]
+    user_name = user_key[1]
     item_match_index = 0
-    response = table.get_item(Key={'userid' : user_id,'name' : user_name})
+    response = table.get_item(Key={'id' : user_id,'name' : user_name})
     if (response['ResponseMetadata']['HTTPStatusCode'] == 200 and "Currency" in intent["slots"]):
         items = response['Item']
         portfolio = items['portfolio']
@@ -692,28 +686,28 @@ def add_coin_to_portfolio(intent, event, table, user_details):
             old_qty = decimal.Decimal(matched_item.get('qty'))
             new_qty = decimal.Decimal(intent["slots"]["Quantity"]["value"])
             total_qty = old_qty + new_qty
-            old_prc = decimal.Decimal(matched_item.get('buy_prc'))
+            old_prc = decimal.Decimal(matched_item.get('prc'))
             new_prc = decimal.Decimal(intent["slots"]["Price"]["value"])
             total_prc = (old_prc * old_qty) + (new_prc * new_qty)
             prc = decimal.Decimal(str(round((total_prc / total_qty),2)))
             matched_item['qty'] = total_qty
-            matched_item['buy_prc'] = prc
+            matched_item['prc'] = prc
             portfolio[item_match_index] = matched_item
         else:
             new_cur = {
                         "cur": str(intent["slots"]["Currency"]["value"]),
                         "qty": decimal.Decimal(intent["slots"]["Quantity"]["value"]),
-                        "buy_prc": decimal.Decimal(intent["slots"]["Price"]["value"])
+                        "prc": decimal.Decimal(intent["slots"]["Price"]["value"])
                     }
             portfolio.append(new_cur)
 
 
-        req_count = int(items['total_request_count']) + 1
-        access_time = str(datetime.datetime.now())
+        req_count = int(items['totReqCt']) + 1
+        access_time = str(datetime.datetime.now()).split(".")[0]
 
         table.update_item(
-            Key={'userid': user_id,'name': user_name},
-            UpdateExpression='SET total_request_count = :val1, last_access_time = :val2, portfolio = :val3',
+            Key={'id': user_id,'name': user_name},
+            UpdateExpression='SET totReqCt = :val1, lastSeen = :val2, portfolio = :val3',
             ExpressionAttributeValues={':val1': req_count,':val2': access_time,':val3': portfolio}
         )
 
@@ -732,6 +726,134 @@ def add_coin_to_portfolio(intent, event, table, user_details):
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
 
+
+
+# Function to Delete coin from portfolio
+# --------------------------------------
+
+def del_frm_portolio(intent, event, access_token):
+    if access_token is not None:
+        user_details = get_user_info(access_token)
+        if user_details is None:
+            session_attributes = {}
+            card_title = "CG - Goodbye!"
+            speech_output = "There was a problem getting your user details."
+            reprompt_text = ""
+            should_end_session = True
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+        else:
+            dynamodb = boto3.resource('dynamodb')
+            tablename = 'cg-user-details'
+            table = dynamodb.Table(tablename)
+            user_id = user_details['user_id'].split(".")[0] + user_details['user_id'].split(".")[2]
+            user_name = check_user_account(table, user_id)
+
+            if user_name:
+                user_key = (user_id, user_name)
+                dialog_state = event['request']['dialogState']
+                if dialog_state in ("STARTED", "IN_PROGRESS"):
+                    return continue_dialog()
+                elif dialog_state == "COMPLETED":
+                    return del_coin_frm_portfolio(intent, event, table, user_key)
+                else:
+                    return handle_session_end_request()
+            else:
+                card_title = "CG - Goodbye!"
+                speech_output = "You have not created your portfolio. Please relaunch the skill and add some coins to your portfolio by selecting option six. Good bye!"
+                reprompt_text = ""
+                should_end_session = True
+                return build_response(session_attributes, build_speechlet_response(
+                    card_title, speech_output, reprompt_text, should_end_session))
+                
+    else:
+        card_title = "CG - Goodbye!"
+        speech_output = "Your user details are not available at this time.  Please complete account linking via " \
+                        "the Alexa app and try again later."
+        reprompt_text = ""
+        should_end_session = True
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+def del_coin_frm_portfolio(intent, event, table, user_key):
+    user_id = user_key[0]
+    user_name = user_key[1]
+    item_match_index = 0
+    response = table.get_item(Key={'id' : user_id,'name' : user_name})
+    if (response['ResponseMetadata']['HTTPStatusCode'] == 200 and "Currency" in intent["slots"]):
+        items = response['Item']
+        portfolio = items['portfolio']
+        item_count = len(portfolio)
+        for count in range(item_count):
+            portfolio_item = portfolio[count]
+            if intent["slots"]["Currency"]["value"] == portfolio_item.get('cur').encode('UTF8'):
+                cur_exist = True
+                item_match_index = count
+                break
+            else:
+                cur_exist = False
+
+        if cur_exist:
+            matched_item = portfolio[item_match_index]
+            old_qty = decimal.Decimal(matched_item.get('qty'))
+            new_qty = decimal.Decimal(intent["slots"]["Quantity"]["value"])
+            if old_qty > new_qty:
+                total_qty = old_qty - new_qty
+                matched_item['qty'] = total_qty
+                portfolio[item_match_index] = matched_item
+            else:
+                del portfolio[item_match_index]
+                req_count = int(items['totReqCt']) + 1
+                access_time = str(datetime.datetime.now()).split(".")[0]
+
+                table.update_item(
+                    Key={'id': user_id,'name': user_name},
+                    UpdateExpression='SET totReqCt = :val1, lastSeen = :val2, portfolio = :val3',
+                    ExpressionAttributeValues={':val1': req_count,':val2': access_time,':val3': portfolio}
+                )
+
+                card_title = "CG - Goodbye!"
+                speech_output = str(intent["slots"]["Currency"]["value"]) + " has been removed from your portfolio successfully. " \
+                                "To get the latest status of your portfolio, please re-launch the skill and choose option four. Good bye!!"
+                reprompt_text = ""
+                should_end_session = True
+                return build_response(session_attributes, build_speechlet_response(
+                    card_title, speech_output, reprompt_text, should_end_session))
+        else:
+            card_title = "CG - Goodbye!"
+            speech_output = "The requested coin does not exist in your portfolio. So I am sorry that I can not fulfill your request. Good bye!!"
+            reprompt_text = ""
+            should_end_session = True
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+
+
+        req_count = int(items['totReqCt']) + 1
+        access_time = str(datetime.datetime.now()).split(".")[0]
+
+        table.update_item(
+            Key={'id': user_id,'name': user_name},
+            UpdateExpression='SET totReqCt = :val1, lastSeen = :val2, portfolio = :val3',
+            ExpressionAttributeValues={':val1': req_count,':val2': access_time,':val3': portfolio}
+        )
+
+        speech_output = "I have successfully removed " + str(intent["slots"]["Quantity"]["value"]) + " quantity of " \
+                        + str(intent["slots"]["Currency"]["value"]) + " from your portfolio. To get the latest status " \
+                        "of your portfolio, please re-launch the skill and choose option four." + \
+                        " Thank for using crypto genie. Good bye! "
+        reprompt_text = ""
+        card_title = "CG - Goodbye!"
+        should_end_session = True
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+    else:
+        speech_output = "I am unable to get your portfolio status. Please try again later. "
+        reprompt_text = ""
+        should_end_session = True
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
 
 
 

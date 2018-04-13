@@ -3,6 +3,7 @@ import time
 import json
 import boto3
 import urllib
+import string
 import decimal
 import requests
 import datetime
@@ -16,6 +17,7 @@ session_attributes = {
                         "userPromptedFor_getLatestNews" : "",
                         "userPromptedFor_getQuickFacts" : "",
                         "userPromptedFor_getPortfolioStatus" : "",
+                        "userPromptedFor_getAnyCryptoPrice" : "",
                     }
 
 # Main Lambda Fucntion body
@@ -75,6 +77,9 @@ def on_intent(event, access_token):
         elif session['attributes']['userPromptedFor_getIcoInfo']:
             del session['attributes']['userPromptedFor_getIcoInfo']
             return handle_session_end_request()
+        elif session['attributes']['userPromptedFor_getAnyCryptoPrice']:
+            del session['attributes']['userPromptedFor_getAnyCryptoPrice']
+            return handle_session_end_request()
         elif session['attributes']['userPromptedFor_getLatestNews']:
             del session['attributes']['userPromptedFor_getLatestNews']
             return handle_session_end_request()
@@ -95,6 +100,9 @@ def on_intent(event, access_token):
         elif session['attributes']['userPromptedFor_getIcoInfo']:
             del session['attributes']['userPromptedFor_getIcoInfo']
             return get_welcome_response(access_token)
+        elif session['attributes']['userPromptedFor_getAnyCryptoPrice']:
+            del session['attributes']['userPromptedFor_getAnyCryptoPrice']
+            return get_welcome_response(access_token)
         elif session['attributes']['userPromptedFor_getLatestNews']:
             del session['attributes']['userPromptedFor_getLatestNews']
             return get_welcome_response(access_token)
@@ -111,6 +119,8 @@ def on_intent(event, access_token):
         return get_crypto_price()
     elif intent_name == "GetIcoInfo":
         return get_ico_info()
+    elif intent_name == "GetAnyCryptoPrice":
+        return get_any_crypto_price(intent, event)
     elif intent_name == "GetQuickFacts":
         return get_quick_facts(intent, event)
     elif intent_name == "GetPortfolio":
@@ -122,7 +132,7 @@ def on_intent(event, access_token):
     elif intent_name == "GetLatestNews":
         return get_latest_news()
     elif intent_name == "AMAZON.HelpIntent":
-        return get_welcome_response()
+        return get_welcome_response(access_token)
     elif intent_name == "AMAZON.CancelIntent" or intent_name == "AMAZON.StopIntent":
         return handle_session_end_request()
     else:
@@ -167,13 +177,15 @@ def get_welcome_response(access_token):
             speech_output = "Hello " + user_details['name'].split(" ")[0] + "! My name is Crypto Genie. " \
                             "Please choose any one option from the below list. Your options are: " \
                             "Choice 1:  Top crypto currency prices . " \
-                            "Choice 2:  Ongoing I C O . " \
-                            "Choice 3:  Social Media facts . " \
-                            "Choice 4:  Get portfolio status . " \
+                            "Choice 2:  Check price of any coin . " \
+                            "Choice 3:  Ongoing I C O list . " \
+                            "Choice 4:  Social Media facts . " \
                             "Choice 5:  Crypto headlines . " \
                             "Choice 6:  Add coin to portfolio . " \
-                            "Choice 7:  Delete coin from portfolio . "
-            reprompt_text = "Please choose any option between one to six"
+                            "Choice 7:  Remove coin from portfolio . " \
+                            "Choice 8:  Get portfolio status . " \
+                            "You can say stop anytime to stop me from processing your request. Or say help to allow me to guide you. "
+            reprompt_text = "Please choose any option between one to eight"
             should_end_session = False
 
     return build_response(session_attributes, build_speechlet_response(
@@ -279,7 +291,7 @@ def build_dialogue_response(message, session_attributes={}):
 
 def collect_social_media_info(intent):
     card_title = "CG - Social Media Facts"
-    speech_output = "Sorry, I can not recognize the currency you just said. Please try again. "
+    speech_output = "Sorry, I can not recognize the currency you just said. Please try again. Say yes to continue. Or say no to exit. "
     reprompt_text = "If you are not sure, try some well know currency. Like: Bitcoin. "
     should_end_session = False
 
@@ -389,6 +401,54 @@ def collect_social_media_info(intent):
 
 
 
+def get_any_crypto_price(intent, event):
+    dialog_state = event['request']['dialogState']
+    if dialog_state in ("STARTED", "IN_PROGRESS"):
+        return continue_dialog()
+    elif dialog_state == "COMPLETED":
+        return ger_cur_price(intent)
+    else:
+        return handle_session_end_request()
+
+
+
+def ger_cur_price(intent):
+    card_title = "CG - Coin Price Check"
+    speech_output = "Sorry. I can not recognize the currency you are looking for. I hope you know that I can only understand currency symbol. " \
+                    "Like if you want to know the price of bitcoin, please say BTC, without any space . Thank you for your understanding. Good bye!!"
+    should_end_session = False
+
+    if "Currency" in intent["slots"]:
+        try:
+            user_cur = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+        except KeyError:
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+
+
+    base_cur = 'USD'
+    url = os.environ['api_base_url6']
+    url = string.replace(url, 'VAR1', user_cur)
+    url = string.replace(url, 'VAR2', base_cur)
+    r = requests.get(url)
+    j = json.loads(r.content)
+
+    if base_cur in j:
+        usd_price = str(j['USD'])
+        session_attributes["userPromptedFor_getAnyCryptoPrice"] = "true"
+        reprompt_text = "I am still waiting for your response. "
+        speech_output = "The current price of " + str(user_cur) + " is " + usd_price + " U S D. " \
+                        "Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+    else:
+        should_end_session = True
+        reprompt_text = ""
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+
+
 def get_latest_news():
     card_title = "CG - Crypto News Headlines"
     speech_output = "Hmm...I am sorry. I couldn't get the latest news. " \
@@ -473,7 +533,7 @@ def check_user_account(table, user_id):
         else:
             return items[0]['name']
     else:
-        speech_output = "I am unable to check your account. Please try again later."
+        speech_output = "I am unable to check your account. Please try again after some time."
         reprompt_text = ""
         should_end_session = True
         return build_response(session_attributes, build_speechlet_response(
@@ -488,31 +548,66 @@ def create_user_account(intent, event, table, user_details):
     card_title = "CG - Goodbye!!"
 
     portfolio_user_name = user_details['name']
+    portfolio_user_email = user_details['email']
 
     if "Currency" in intent["slots"]:
         try:
-            portfolio_currency = intent["slots"]["Currency"]["value"]
-        except KeyError:
-            return build_response(session_attributes, build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
-
-    if "Quantity" in intent["slots"]:
-        try:
-            portfolio_quantity = intent["slots"]["Quantity"]["value"]
-        except KeyError:
-            return build_response(session_attributes, build_speechlet_response(
-        card_title, speech_output, reprompt_text, should_end_session))
-
-    if "Price" in intent["slots"]:
-        try:
-            portfolio_price = intent["slots"]["Price"]["value"]
+            portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
         except KeyError:
             return build_response(session_attributes, build_speechlet_response(
                 card_title, speech_output, reprompt_text, should_end_session))
 
+    if "Quantity" in intent["slots"]:
+        try:
+            portfolio_quantity_whole = int(intent["slots"]["Quantity"]["value"])
+        except KeyError:
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+
+    if "FractionalQuantity" in intent["slots"]:
+        try:
+            portfolio_quantity_fraction = int(intent["slots"]["FractionalQuantity"]["value"])
+        except KeyError:
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+
+    if "Price" in intent["slots"]:
+        try:
+            portfolio_price_sat = float(intent["slots"]["Price"]["value"])
+        except KeyError:
+            return build_response(session_attributes, build_speechlet_response(
+                card_title, speech_output, reprompt_text, should_end_session))
+
+    if portfolio_quantity_fraction not in [1,10,100,1000,10000,100000]:
+        speech_output = "Sorry. You have entered invalid fractional quantity. It must be any one of the following values " \
+                        "one, ten, one hundred, one thousand, ten thousand or one hundred thousand . Please try again. Good bye!!"
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+    portfolio_quantity = decimal.Decimal(str(round((float(portfolio_quantity_whole) / float(portfolio_quantity_fraction)),2)))
+
+    base_cur = 'USD'
+    url = os.environ['api_base_url6']
+    url = string.replace(url, 'VAR1', portfolio_currency)
+    url = string.replace(url, 'VAR2', base_cur)
+    r = requests.get(url)
+    j = json.loads(r.content)
+
+    if base_cur not in j:
+        speech_output = "Sorry. I can not find the currency you want to add. I hope you know that I can only understand currency symbol. " \
+                        "Like if you want to add bitcoin to your portfolio, please say BTC, without any space . Thank you for your understanding. Good bye!!"
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+    btc_to_sat = float(100000000)
+    btc_to_usd = float(str(get_btc_price()))
+    portfolio_price_btc = portfolio_price_sat / btc_to_sat
+    portfolio_price_usd = decimal.Decimal(str(round((portfolio_price_btc * btc_to_usd),2)))
+    portfolio_price = portfolio_price_usd
 
     input_userid = user_details['user_id'].split(".")[0] + user_details['user_id'].split(".")[2]
     input_name = portfolio_user_name
+    input_email = portfolio_user_email
     input_account_type = 1
     input_account_status = "A"
     input_portfolio = [{"cur": portfolio_currency , "qty": portfolio_quantity, "prc": portfolio_price}]
@@ -524,6 +619,7 @@ def create_user_account(intent, event, table, user_details):
                 Item={
                 'id': input_userid,
                 'name': input_name,
+                'email': input_email,
                 'type': input_account_type,
                 'status': input_account_status,
                 'portfolio' : input_portfolio,
@@ -533,13 +629,14 @@ def create_user_account(intent, event, table, user_details):
         )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        speech_output = "Congratulations " + user_details['name'].split(" ")[0] + "! Your portfolio has been " \
-                        "created successfully! To check your portfolio, please launch the skill and choose option " \
-                        "four. "
+        speech_output = "Hurray !! " + user_details['name'].split(" ")[0] + ", your portfolio has been " \
+                        "created successfully! To check your portfolio value, please launch the skill and choose option " \
+                        "eight. "
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
     else:
-        speech_output = "I am unable to create your portfolio. Please try again later."
+        speech_output = "I am unable to create your portfolio. Sorry for the inconvenience, but looks like there is a remote connectivity problem. " \
+                        "So please try again after some time."
         reprompt_text = ""
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
@@ -583,16 +680,29 @@ def get_portfolio_details(intent, event, table, user_key):
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
 
-    for x in portfolio:
-        cur = x['cur'].encode('UTF8')
-        qty = decimal.Decimal(x['qty'])
-        buy_prc = decimal.Decimal(x['prc'])
-        portfolio_val_old += buy_prc * qty
 
-        r = requests.get(os.environ['api_base_url5'] + cur)
-        j = json.loads(r.content)
-        cur_prc = decimal.Decimal(j[0]['price_usd'].encode('UTF8'))
-        portfolio_val_new += cur_prc * qty
+    if not portfolio:
+        speech_output = "Hmm. " + str(user_name.split(" ")[0]) + ", your portfolio is empty. Please add some coins to your portfolio and try again. Goodbye!! "
+        reprompt_text = ""
+        should_end_session = True
+        card_title = "CG - Goodbye!!"
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+    else:
+        for x in portfolio:
+            cur = x['cur'].encode('UTF8')
+            qty = decimal.Decimal(x['qty'])
+            buy_prc = decimal.Decimal(x['prc'])
+            portfolio_val_old += buy_prc * qty
+            
+            base_cur = 'USD'
+            url = os.environ['api_base_url6']
+            url = string.replace(url, 'VAR1', cur)
+            url = string.replace(url, 'VAR2', base_cur)
+            r = requests.get(url)
+            j = json.loads(r.content)
+            cur_prc = decimal.Decimal(str(j['USD']))
+            portfolio_val_new += cur_prc * qty
 
     portfolio_prcnt_change = ((portfolio_val_new - portfolio_val_old) / portfolio_val_old) * 100
     portfolio_prcnt_change_abs = round(decimal.Decimal(abs(portfolio_prcnt_change)),2)
@@ -606,8 +716,8 @@ def get_portfolio_details(intent, event, table, user_key):
 
 
     session_attributes["userPromptedFor_getPortfolioStatus"] = "true"
-    speech_output = "Your current portfolio valuation is. " + str(portfolio_val_new) + " dollars. " + portfolio_msg + "to say " \
-                    + user_name.split(" ")[0] + ", that your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " \
+    speech_output = user_name.split(" ")[0] + ", your current portfolio valuation is. " + str(round((float(portfolio_val_new)),2)) + " dollars. " \
+                    + portfolio_msg + "to say, that your portfolio is showing " + str(portfolio_prcnt_change_abs) + " percent " \
                     + str(portfolio_status) + ". Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
     reprompt_text = "I am still waiting for your response. Please say yes if you want to continue. Please say no if you want to exit."
 
@@ -667,6 +777,39 @@ def add_coin_to_portfolio(intent, event, table, user_key):
     user_id = user_key[0]
     user_name = user_key[1]
     item_match_index = 0
+    cur_exist = False
+    x = int(intent["slots"]["Quantity"]["value"])
+    y = int(intent["slots"]["FractionalQuantity"]["value"])
+
+    if y not in [1,10,100,1000,10000,100000]:
+        speech_output = "Sorry. You have entered invalid fractional quantity. It must be any one of the following values. " \
+                        "One, ten, one hundred, one thousand, ten thousand or one hundred thousand . Please try again. Good bye!!"
+        card_title = "CG - Goodbye!"
+        session_attributes = {}
+        should_end_session = True
+        reprompt_text = ""
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+    base_cur = 'USD'
+    portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+    url = os.environ['api_base_url6']
+    url = string.replace(url, 'VAR1', portfolio_currency)
+    url = string.replace(url, 'VAR2', base_cur)
+    r = requests.get(url)
+    j = json.loads(r.content)
+
+    if base_cur not in j:
+        speech_output = "Sorry. I can not find the currency you want to add. I hope you know that I can only understand currency symbol. " \
+                        "Like if you want to add bitcoin to your portfolio, please say BTC, without any space . Thank you for your understanding. Good bye!!"
+        reprompt_text = ""
+        should_end_session = True
+        card_title = "CG - Goodbye!!"
+        session_attributes = {}
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+
     response = table.get_item(Key={'id' : user_id,'name' : user_name})
     if (response['ResponseMetadata']['HTTPStatusCode'] == 200 and "Currency" in intent["slots"]):
         items = response['Item']
@@ -674,30 +817,43 @@ def add_coin_to_portfolio(intent, event, table, user_key):
         item_count = len(portfolio)
         for count in range(item_count):
             portfolio_item = portfolio[count]
-            if intent["slots"]["Currency"]["value"] == portfolio_item.get('cur').encode('UTF8'):
+            if portfolio_currency == portfolio_item.get('cur').encode('UTF8'):
                 cur_exist = True
                 item_match_index = count
                 break
-            else:
-                cur_exist = False
 
         if cur_exist:
             matched_item = portfolio[item_match_index]
             old_qty = decimal.Decimal(matched_item.get('qty'))
-            new_qty = decimal.Decimal(intent["slots"]["Quantity"]["value"])
+            new_qty = decimal.Decimal(str(round((float(x) / float(y)),2)))
             total_qty = old_qty + new_qty
             old_prc = decimal.Decimal(matched_item.get('prc'))
-            new_prc = decimal.Decimal(intent["slots"]["Price"]["value"])
+
+            portfolio_price_sat = float(intent["slots"]["Price"]["value"])
+            btc_to_sat = float(100000000)
+            btc_to_usd = float(str(get_btc_price()))
+            portfolio_price_btc = portfolio_price_sat / btc_to_sat
+            portfolio_price_usd = decimal.Decimal(str(round((portfolio_price_btc * btc_to_usd),2)))
+            new_prc = portfolio_price_usd
+
             total_prc = (old_prc * old_qty) + (new_prc * new_qty)
             prc = decimal.Decimal(str(round((total_prc / total_qty),2)))
             matched_item['qty'] = total_qty
             matched_item['prc'] = prc
             portfolio[item_match_index] = matched_item
         else:
+            portfolio_price_sat = float(intent["slots"]["Price"]["value"])
+            btc_to_sat = float(100000000)
+            btc_to_usd = float(str(get_btc_price()))
+            portfolio_price_btc = portfolio_price_sat / btc_to_sat
+            portfolio_price_usd = decimal.Decimal(str(round((portfolio_price_btc * btc_to_usd),2)))
+            new_prc = portfolio_price_usd
+            new_qty = decimal.Decimal(str(round((float(x) / float(y)),2)))
+
             new_cur = {
-                        "cur": str(intent["slots"]["Currency"]["value"]),
-                        "qty": decimal.Decimal(intent["slots"]["Quantity"]["value"]),
-                        "prc": decimal.Decimal(intent["slots"]["Price"]["value"])
+                        "cur": str(portfolio_currency),
+                        "qty": new_qty,
+                        "prc": new_prc
                     }
             portfolio.append(new_cur)
 
@@ -711,18 +867,20 @@ def add_coin_to_portfolio(intent, event, table, user_key):
             ExpressionAttributeValues={':val1': req_count,':val2': access_time,':val3': portfolio}
         )
 
-        speech_output = "I have successfully added " + str(intent["slots"]["Quantity"]["value"]) + " quantity of " \
+        speech_output = "I have successfully added " + str(new_qty) + " quantity of " \
                         + str(intent["slots"]["Currency"]["value"]) + " bought at the rate of " + \
-                        str(intent["slots"]["Price"]["value"]) + " dollar. Thank for using crypto genie. Good bye! "
+                        str(new_prc) + " dollar. Thank you for using crypto genie. Good bye! "
         reprompt_text = ""
         card_title = "CG - Goodbye!"
         should_end_session = True
+        session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
     else:
         speech_output = "I am unable to get your portfolio status. Please try again later. "
         reprompt_text = ""
         should_end_session = True
+        session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
 
@@ -760,6 +918,7 @@ def del_frm_portolio(intent, event, access_token):
                     return handle_session_end_request()
             else:
                 card_title = "CG - Goodbye!"
+                session_attributes = {}
                 speech_output = "You have not created your portfolio. Please relaunch the skill and add some coins to your portfolio by selecting option six. Good bye!"
                 reprompt_text = ""
                 should_end_session = True
@@ -772,6 +931,7 @@ def del_frm_portolio(intent, event, access_token):
                         "the Alexa app and try again later."
         reprompt_text = ""
         should_end_session = True
+        session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
 
@@ -781,6 +941,40 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
     user_id = user_key[0]
     user_name = user_key[1]
     item_match_index = 0
+    cur_exist = False
+    x = int(intent["slots"]["Quantity"]["value"])
+    y = int(intent["slots"]["FractionalQuantity"]["value"])
+
+    if y not in [1,10,100,1000,10000,100000]:
+        speech_output = "Sorry. You have entered invalid fractional quantity. It must be any one of the following values. " \
+                        "One, ten, one hundred, one thousand, ten thousand or one hundred thousand . Please try again. Good bye!!"
+        card_title = "CG - Goodbye!"
+        session_attributes = {}
+        should_end_session = True
+        reprompt_text = ""
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+
+    base_cur = 'USD'
+    portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+    url = os.environ['api_base_url6']
+    url = string.replace(url, 'VAR1', portfolio_currency)
+    url = string.replace(url, 'VAR2', base_cur)
+    r = requests.get(url)
+    j = json.loads(r.content)
+
+    if base_cur not in j:
+        speech_output = "Sorry. I can not find the currency you want to add. I hope you know that I can only understand currency symbol. " \
+                        "Like if you want to add bitcoin to your portfolio, please say BTC, without any space . Thank you for your understanding. Good bye!!"
+        reprompt_text = ""
+        should_end_session = True
+        card_title = "CG - Goodbye!!"
+        session_attributes = {}
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
+
     response = table.get_item(Key={'id' : user_id,'name' : user_name})
     if (response['ResponseMetadata']['HTTPStatusCode'] == 200 and "Currency" in intent["slots"]):
         items = response['Item']
@@ -788,22 +982,20 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
         item_count = len(portfolio)
         for count in range(item_count):
             portfolio_item = portfolio[count]
-            if intent["slots"]["Currency"]["value"] == portfolio_item.get('cur').encode('UTF8'):
+            if portfolio_currency == portfolio_item.get('cur').encode('UTF8'):
                 cur_exist = True
                 item_match_index = count
                 break
-            else:
-                cur_exist = False
 
         if cur_exist:
             matched_item = portfolio[item_match_index]
             old_qty = decimal.Decimal(matched_item.get('qty'))
-            new_qty = decimal.Decimal(intent["slots"]["Quantity"]["value"])
+            new_qty = decimal.Decimal(str(round((float(x) / float(y)),2)))
             if old_qty > new_qty:
                 total_qty = old_qty - new_qty
                 matched_item['qty'] = total_qty
                 portfolio[item_match_index] = matched_item
-            else:
+            elif old_qty == new_qty:
                 del portfolio[item_match_index]
                 req_count = int(items['totReqCt']) + 1
                 access_time = str(datetime.datetime.now()).split(".")[0]
@@ -816,9 +1008,19 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
 
                 card_title = "CG - Goodbye!"
                 speech_output = str(intent["slots"]["Currency"]["value"]) + " has been removed from your portfolio successfully. " \
-                                "To get the latest status of your portfolio, please re-launch the skill and choose option four. Good bye!!"
+                                "To get the latest status of your portfolio, please re-launch the skill and choose option eight. Good bye!!"
+                reprompt_text = ""
+                session_attributes = {}
+                should_end_session = True
+                return build_response(session_attributes, build_speechlet_response(
+                    card_title, speech_output, reprompt_text, should_end_session))
+            else:
+                card_title = "CG - Goodbye!"
+                speech_output = "You do not have " + str(new_qty) + " " + str(portfolio_currency) + " in your portfolio. "\
+                                "So I can not fulfill your request. Good bye!!"
                 reprompt_text = ""
                 should_end_session = True
+                session_attributes = {}
                 return build_response(session_attributes, build_speechlet_response(
                     card_title, speech_output, reprompt_text, should_end_session))
         else:
@@ -826,6 +1028,7 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
             speech_output = "The requested coin does not exist in your portfolio. So I am sorry that I can not fulfill your request. Good bye!!"
             reprompt_text = ""
             should_end_session = True
+            session_attributes = {}
             return build_response(session_attributes, build_speechlet_response(
                 card_title, speech_output, reprompt_text, should_end_session))
 
@@ -839,21 +1042,44 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
             ExpressionAttributeValues={':val1': req_count,':val2': access_time,':val3': portfolio}
         )
 
-        speech_output = "I have successfully removed " + str(intent["slots"]["Quantity"]["value"]) + " quantity of " \
+        new_qty = decimal.Decimal(str(round((float(x) / float(y)),2)))
+        speech_output = "I have successfully removed " + str(new_qty) + " quantity of " \
                         + str(intent["slots"]["Currency"]["value"]) + " from your portfolio. To get the latest status " \
-                        "of your portfolio, please re-launch the skill and choose option four." + \
-                        " Thank for using crypto genie. Good bye! "
+                        "of your portfolio, please re-launch the skill and choose option eight." + \
+                        " Thank you for using crypto genie. Good bye! "
         reprompt_text = ""
         card_title = "CG - Goodbye!"
         should_end_session = True
+        session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
     else:
-        speech_output = "I am unable to get your portfolio status. Please try again later. "
+        speech_output = "I am unable to get your portfolio status from the database. looks like there is remote connectivity problem. Please try again after some time. "
         reprompt_text = ""
         should_end_session = True
+        session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
+
+
+
+def get_btc_price():
+    url = os.environ['api_base_url6']
+    url = string.replace(url, 'VAR1', 'BTC')
+    url = string.replace(url, 'VAR2', 'USD')
+    r = requests.get(url)
+    j = json.loads(r.content)
+
+    if 'USD' not in j:
+        reprompt_text = ""
+        should_end_session = True
+        card_title = "CG - Goodbye!!"
+        session_attributes = {}
+        speech_output = "Sorry. I can not connect to the server to check the latest price. Please try again after sometime. Goodbye!!"
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+    else:
+        return j['USD']
 
 
 
@@ -890,7 +1116,6 @@ def get_user_info(access_token):
         return r.json()
     else:
         return False
-
 
 
 

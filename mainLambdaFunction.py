@@ -164,9 +164,10 @@ def get_welcome_response(access_token):
     session_attributes = {}
     card_title = "Crypto Genie - Welcome"
     if access_token is None:
-        speech_output = "Your user details are not available at this time.  Please complete account linking via the Alexa app and try again later."
-        reprompt_text = ""
-        should_end_session = True
+        output = "To use the skill, please complete your account linking. To link your " \
+                "account, please go to the home section of your Alexa app. And click on the account setup card."
+        session_attributes = {}
+        return build_response(session_attributes, acc_link_speechlet_response(output))
     else:
         user_details = get_user_info(access_token)
         if user_details is None:
@@ -292,7 +293,7 @@ def build_dialogue_response(message, session_attributes={}):
 def collect_social_media_info(intent):
     card_title = "CG - Social Media Facts"
     speech_output = "Sorry, I can not recognize the currency you just said. Please try again. Say yes to continue. Or say no to exit. "
-    reprompt_text = "If you are not sure, try some well know currency. Like: Bitcoin. "
+    reprompt_text = "If you are not sure, try some well know currency. Like: B T C. "
     should_end_session = False
 
     if "Currency" in intent["slots"]:
@@ -302,99 +303,103 @@ def collect_social_media_info(intent):
           return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
        
-       currency_code = get_currency_code(currency_name.lower())
+    currency_code = intent["slots"]["Currency"]["resolutions"]["resolutionsPerAuthority"][0]["values"][0]["value"]["id"]
 
-       if (currency_code != "unkn"):
-            card_title = "CG - Social Media Facts " + currency_name.title()
-            r = requests.get(os.environ['api_base_url3'] + currency_code)
-            j = json.loads(r.content)
+    if (currency_code != "unkn"):
+         card_title = "CG - Social Media Facts " + currency_name.title()
+         r = requests.get(os.environ['api_base_url3'] + currency_code)
+         j = json.loads(r.content)
 
-          # twitter Account Stats
-          #----------------------
-            try:
-                twtr_acc_name = j['Data']['Twitter']['name']
-            except KeyError:
-                twtr_acc_name = "not available"
-            try:
-                twtr_acc_link = j['Data']['Twitter']['link']
-            except KeyError:
-                twtr_acc_link = "not available"
-            try:
-                twtr_tweet_count = j['Data']['Twitter']['statuses']
-            except KeyError:
-                twtr_tweet_count = "not available"
-            try:
-                twtr_like_count = j['Data']['Twitter']['favourites']
-            except KeyError:
-                twtr_like_count = "not available"
-            try:
-                twtr_follower_count = j['Data']['Twitter']['followers']
-            except KeyError:
-                twtr_follower_count = "not available"
+       # twitter Account Stats
+       #----------------------
+         try:
+             twtr_acc_name = j['Data']['Twitter']['name']
+         except KeyError:
+             twtr_acc_name = "not available"
+         try:
+             twtr_acc_link = j['Data']['Twitter']['link']
+         except KeyError:
+             twtr_acc_link = "not available"
+         try:
+             twtr_tweet_count = j['Data']['Twitter']['statuses']
+         except KeyError:
+             twtr_tweet_count = "not available"
+         try:
+             twtr_like_count = j['Data']['Twitter']['favourites']
+         except KeyError:
+             twtr_like_count = "not available"
+         try:
+             twtr_follower_count = j['Data']['Twitter']['followers']
+         except KeyError:
+             twtr_follower_count = "not available"
 
-          # reddit Account Stats
-          #---------------------
-            try:
-                rdit_acc_name = j['Data']['Reddit']['name']
-            except KeyError:
-                rdit_acc_name = "not available"
-            try:
-                rdit_acc_link = j['Data']['Reddit']['link']
-            except KeyError:
-                rdit_acc_link = "not available"
-            try:
-                rdit_actv_user_count = j['Data']['Reddit']['active_users']
-            except KeyError:
-                rdit_actv_user_count = "not available"
-            try:
-                rdit_subscrb_count = j['Data']['Reddit']['subscribers']
-            except KeyError:
-                rdit_subscrb_count = "not available"
-            try:
-                rdit_posts_per_hour = j['Data']['Reddit']['posts_per_hour']
-            except KeyError:
-                rdit_posts_per_hour = "not available"
-            try:
-                rdit_comnts_per_hour = j['Data']['Reddit']['comments_per_hour']
-            except KeyError:
-                rdit_comnts_per_hour = "not available"
-            try:
-                rdit_posts_per_day = j['Data']['Reddit']['posts_per_day']
-            except KeyError:
-                rdit_posts_per_day = "not available"
-            try:
-                rdit_comnts_per_day = j['Data']['Reddit']['comments_per_day']
-            except KeyError:
-                rdit_comnts_per_day = "not available"
+       # reddit Account Stats
+       #---------------------
+         try:
+             rdit_acc_name = j['Data']['Reddit']['name']
+         except KeyError:
+             rdit_acc_name = "not available"
+         try:
+             rdit_acc_link = j['Data']['Reddit']['link']
+         except KeyError:
+             rdit_acc_link = "not available"
+         try:
+             rdit_actv_user_count = j['Data']['Reddit']['active_users']
+         except KeyError:
+             rdit_actv_user_count = "not available"
+         try:
+             rdit_subscrb_count = j['Data']['Reddit']['subscribers']
+         except KeyError:
+             rdit_subscrb_count = "not available"
+         try:
+             rdit_posts_per_hour = j['Data']['Reddit']['posts_per_hour']
+         except KeyError:
+             rdit_posts_per_hour = "not available"
+         try:
+             rdit_comnts_per_hour = j['Data']['Reddit']['comments_per_hour']
+         except KeyError:
+             rdit_comnts_per_hour = "not available"
+         try:
+             rdit_posts_per_day = j['Data']['Reddit']['posts_per_day']
+         except KeyError:
+             rdit_posts_per_day = "not available"
+         try:
+             rdit_comnts_per_day = j['Data']['Reddit']['comments_per_day']
+         except KeyError:
+             rdit_comnts_per_day = "not available"
 
-          # facebook account stats
-          #-----------------------
-            try:
-                fb_like_count = j['Data']['Facebook']['likes']
-            except KeyError:
-                fb_like_count = "not available"
-            try:
-                fb_talking_count = j['Data']['Facebook']['talking_about']
-            except KeyError:
-                fb_talking_count = "not available"
-            try:
-                fb_link = j['Data']['Facebook']['link']
-            except KeyError:
-                fb_link = "not available"
+       # facebook account stats
+       #-----------------------
+         try:
+             fb_like_count = j['Data']['Facebook']['likes']
+         except KeyError:
+             fb_like_count = "not available"
+         try:
+             fb_talking_count = j['Data']['Facebook']['talking_about']
+         except KeyError:
+             fb_talking_count = "not available"
+         try:
+             fb_link = j['Data']['Facebook']['link']
+         except KeyError:
+             fb_link = "not available"
 
 
-            session_attributes["userPromptedFor_getQuickFacts"] = "true"
-            speech_output = " OK. Getting the latest social media related activities on " + str(currency_name) + ". Report is ready. Here we go: " \
-                            "Twitter account statistics. Account name: " + str(twtr_acc_name) + ". Number of followers: " + str(twtr_follower_count) + \
-                            ". Total tweet count: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users: " + twtr_like_count + ". " \
-                            "Reddit account statistics. Account name: " + str(rdit_acc_name) + ". Number of active users: " + str(rdit_actv_user_count) + \
-                            ". Total number of subscribers: " + str(rdit_subscrb_count) + ". Number of posts per hour: " + str(rdit_posts_per_hour) + \
-                            ". Number of comments per hour: " + str(rdit_comnts_per_hour) + ". Number of posts per day: " + str(rdit_posts_per_day) + \
-                            ". Number of comments per day: " + str(rdit_comnts_per_day) + ". Facebook account statistics. Number of likes: " + \
-                            str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
-                            "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you. " \
-                            "Do you want me to do anything else for you? Please say yes or no."
-            reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
+         session_attributes["userPromptedFor_getQuickFacts"] = "true"
+         if rdit_acc_name == "not available" and twtr_acc_name == "not available":
+             speech_output = "Sorry. I could not find any social media related activities about " + str(currency_name) + ". So that's all. " \
+                             "Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
+         else:
+             speech_output = " OK. Getting the latest social media related activities on " + str(currency_name) + ". Report is ready. Here we go: " \
+                             "Twitter account statistics. Account name: " + str(twtr_acc_name) + ". Number of followers: " + str(twtr_follower_count) + \
+                             ". Total tweet count: " + str(twtr_tweet_count) + ". Total number of tweets liked by the users: " + twtr_like_count + ". " \
+                             "Reddit account statistics. Account name: " + str(rdit_acc_name) + ". Number of active users: " + str(rdit_actv_user_count) + \
+                             ". Total number of subscribers: " + str(rdit_subscrb_count) + ". Number of posts per hour: " + str(rdit_posts_per_hour) + \
+                             ". Number of comments per hour: " + str(rdit_comnts_per_hour) + ". Number of posts per day: " + str(rdit_posts_per_day) + \
+                             ". Number of comments per day: " + str(rdit_comnts_per_day) + ". Facebook account statistics. Number of likes: " + \
+                             str(fb_like_count) + ". Number of people talking about " + str(currency_name) + " on facebook is: " + str(fb_talking_count) + ". " \
+                             "So that is all I can find on social media about " + str(currency_name) + ". I hope my report was useful for you. " \
+                             "Do you want me to do anything else for you? Please say yes or no."
+         reprompt_text = "Hmm I did not get that. Do you want me to continue? Please say yes or no. To exit, please say stop or cancel"
 
     return build_response(session_attributes, build_speechlet_response(
         card_title, speech_output, reprompt_text, should_end_session))
@@ -420,8 +425,10 @@ def ger_cur_price(intent):
 
     if "Currency" in intent["slots"]:
         try:
-            user_cur = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+            user_cur = (intent["slots"]["Currency"]["resolutions"]["resolutionsPerAuthority"][0]["values"][0]["value"]["name"]).replace(" ","").upper()
         except KeyError:
+            reprompt_text = ""
+            should_end_session = True
             return build_response(session_attributes, build_speechlet_response(
                 card_title, speech_output, reprompt_text, should_end_session))
 
@@ -437,7 +444,7 @@ def ger_cur_price(intent):
         usd_price = str(j['USD'])
         session_attributes["userPromptedFor_getAnyCryptoPrice"] = "true"
         reprompt_text = "I am still waiting for your response. "
-        speech_output = "The current price of " + str(user_cur) + " is " + usd_price + " U S D. " \
+        speech_output = "The current price of " + str(user_cur) + " is " + usd_price + " dollar. " \
                         "Do you want me to do anything else for you? Please say yes to continue. Or say no to exit."
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
@@ -552,7 +559,7 @@ def create_user_account(intent, event, table, user_details):
 
     if "Currency" in intent["slots"]:
         try:
-            portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+            portfolio_currency = (intent["slots"]["Currency"]["resolutions"]["resolutionsPerAuthority"][0]["values"][0]["value"]["name"]).replace(" ","").upper()
         except KeyError:
             return build_response(session_attributes, build_speechlet_response(
                 card_title, speech_output, reprompt_text, should_end_session))
@@ -792,7 +799,17 @@ def add_coin_to_portfolio(intent, event, table, user_key):
             card_title, speech_output, reprompt_text, should_end_session))
 
     base_cur = 'USD'
-    portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+    try:
+        portfolio_currency = (intent["slots"]["Currency"]["resolutions"]["resolutionsPerAuthority"][0]["values"][0]["value"]["name"]).replace(" ","").upper()
+    except KeyError:
+        speech_output = "I am unable to identify the currency. Please try again with a different currency. Thank you for your understanding. Goodbye!!"
+        reprompt_text = ""
+        should_end_session = True
+        card_title = "CG - Goodbye!"
+        session_attributes = {}
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+
     url = os.environ['api_base_url6']
     url = string.replace(url, 'VAR1', portfolio_currency)
     url = string.replace(url, 'VAR2', base_cur)
@@ -957,7 +974,17 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
 
 
     base_cur = 'USD'
-    portfolio_currency = (intent["slots"]["Currency"]["value"]).replace(" ","").upper()
+    try:
+        portfolio_currency = (intent["slots"]["Currency"]["resolutions"]["resolutionsPerAuthority"][0]["values"][0]["value"]["name"]).replace(" ","").upper()
+    except KeyError:
+        speech_output = "I am unable to identify the currency. Please try again with a different currency. Thank you for your understanding. Goodbye!!"
+        reprompt_text = ""
+        session_attributes = {}
+        card_title = "CG - Goodbye!"
+        should_end_session = True
+        return build_response(session_attributes, build_speechlet_response(
+            card_title, speech_output, reprompt_text, should_end_session))
+		
     url = os.environ['api_base_url6']
     url = string.replace(url, 'VAR1', portfolio_currency)
     url = string.replace(url, 'VAR2', base_cur)
@@ -1057,6 +1084,7 @@ def del_coin_frm_portfolio(intent, event, table, user_key):
         speech_output = "I am unable to get your portfolio status from the database. looks like there is remote connectivity problem. Please try again after some time. "
         reprompt_text = ""
         should_end_session = True
+        card_title = "CG - Goodbye!"
         session_attributes = {}
         return build_response(session_attributes, build_speechlet_response(
             card_title, speech_output, reprompt_text, should_end_session))
@@ -1098,17 +1126,6 @@ def date_formatter(input_date):
     return formatted_date, formatted_time
 
 
-# Function-14: Get Currency Code
-# ------------------------------
-def get_currency_code(currency_name):
-    return {
-        "bitcoin": "1182",
-        "ethereum": "7605",
-        "litecoin": "3808",
-    }.get(currency_name, "unkn")
-
-
-
 def get_user_info(access_token):
     amazonProfileURL = 'https://api.amazon.com/user/profile?access_token='
     r = requests.get(url=amazonProfileURL+access_token)
@@ -1116,6 +1133,21 @@ def get_user_info(access_token):
         return r.json()
     else:
         return False
+
+
+
+def acc_link_speechlet_response(output):
+    return {
+        "outputSpeech": {
+            "type": "PlainText",
+            "text": output
+        },
+        "card": {
+            "type": "LinkAccount"
+        },
+        "shouldEndSession": True
+    }
+
 
 
 

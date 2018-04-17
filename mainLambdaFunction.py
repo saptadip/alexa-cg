@@ -1127,7 +1127,7 @@ def date_formatter(input_date):
 
 
 def get_user_info(access_token):
-    amazonProfileURL = 'https://api.amazon.com/user/profile?access_token='
+    amazonProfileURL = os.environ['api_base_url5']
     r = requests.get(url=amazonProfileURL+access_token)
     if r.status_code == 200:
         return r.json()
